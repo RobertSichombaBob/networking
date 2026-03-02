@@ -1,0 +1,12 @@
+{% extends "derived/base.html" %}
+{% block title %}Page Not Found – Deriv.Ed{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-8 col-lg-6 mx-auto text-center py-5">
+        <i class="fas fa-map-signs fa-5x text-deriv-copper mb-4"></i>
+        <h1 class="display-4">404</h1>
+        <p class="lead">Oops! The page you're looking for doesn't exist.</p>
+        <a href="{% url 'derived:home' %}" class="btn btn-copper mt-3">Go back home</a>
+    </div>
+</div>
+{% endblock %}

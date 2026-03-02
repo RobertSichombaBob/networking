@@ -1,549 +1,180 @@
-{% extends 'base.html' %}
+{% extends "portfolio/base.html" %}
 {% load static %}
-
-{% block title %}Robert Sichomba | Data Analyst, ML Engineer, Web Developer{% endblock %}
-
-{% block meta_description %}Welcome to my website – Data Science, Machine Learning, Web Development, and Educational Technology solutions.{% endblock %}
-
-{% block extra_head %}
-<style>
-    .hero {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 90vh;
-        padding-top: 120px;
-        position: relative;
-        overflow: hidden;
-    }
-    .hero::after {
-        content: '';
-        position: absolute;
-        bottom: -50px;
-        left: 0;
-        width: 100%;
-        height: 100px;
-        background: linear-gradient(to top right, transparent 49%, white 50%);
-    }
-    .service-card {
-        border: 1px solid rgba(0,0,0,0.05);
-        border-radius: 16px;
-        padding: 2rem 1.5rem;
-        height: 100%;
-        background: white;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-    }
-    .service-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        border-color: #0d6efd;
-    }
-    .service-icon {
-        width: 80px;
-        height: 80px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-        color: white;
-        font-size: 2rem;
-    }
-    .project-card {
-        border: none;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-        background: white;
-        padding: 1.5rem;
-    }
-    .project-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 30px 60px rgba(0,0,0,0.12);
-    }
-    .project-badge {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        padding: 8px 16px;
-        border-radius: 30px;
-        background: rgba(255,193,7,0.95);
-        color: #000;
-        font-weight: 600;
-        font-size: 0.85rem;
-        z-index: 2;
-    }
-    .tech-tags span {
-        display: inline-block;
-        background: #f8f9fa;
-        color: #495057;
-        padding: 6px 16px;
-        border-radius: 30px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin: 0 4px 8px 0;
-        border: 1px solid #e9ecef;
-    }
-    .btn-project {
-        background: transparent;
-        border: 2px solid #0d6efd;
-        color: #0d6efd;
-        border-radius: 30px;
-        padding: 8px 24px;
-        font-weight: 600;
-        transition: all 0.3s;
-    }
-    .btn-project:hover {
-        background: #0d6efd;
-        color: white;
-    }
-    .testimonial-content {
-        background: white;
-        border-radius: 20px;
-        padding: 3rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        margin: 1rem;
-    }
-    .carousel-control-prev-icon,
-    .carousel-control-next-icon {
-        background-color: rgba(0,0,0,0.3);
-        border-radius: 50%;
-        padding: 1rem;
-    }
-    .carousel-indicators [data-bs-target] {
-        background-color: #0d6efd;
-    }
-    .resource-card {
-        transition: transform 0.3s ease;
-        border: none;
-        border-radius: 16px;
-        height: 100%;
-    }
-    .resource-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-    }
-    .dashboard-progress {
-        height: 8px;
-        border-radius: 4px;
-    }
-</style>
-{% endblock %}
+{% block title %}Deriv.Ed – Find Your Dream Job in Africa{% endblock %}
 
 {% block content %}
-    {# -------------------- AUTHENTICATED DASHBOARD (for students/instructors) -------------------- #}
-    {% if user.is_authenticated and user.role != 'visitor' %}
-        <section class="py-5" style="padding-top: 8rem;">
-            <div class="container">
-                <div class="row mb-4">
-                    <div class="col">
-                        <h1 class="display-5 fw-bold">Welcome back, {{ user.get_display_name }}!</h1>
-                        <p class="lead text-muted">Your learning dashboard</p>
-                    </div>
-                    <div class="col-auto align-self-center">
-                        <a href="{% url 'user_profile' %}" class="btn btn-outline-primary rounded-pill px-4">
-                            <i class="fas fa-user me-2"></i>My Profile
+<!-- Hero Section with animated gradient -->
+<section class="position-relative overflow-hidden" style="background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);">
+    <div class="container py-5">
+        <div class="row align-items-center min-vh-50 py-5">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <h1 class="display-3 fw-bold mb-4" style="line-height: 1.2;">
+                    Connect with <span style="color: #B87333;">opportunities</span><br>across Africa
+                </h1>
+                <p class="lead text-secondary mb-4">Deriv.Ed helps professionals find jobs, grow networks, and build careers on the continent.</p>
+                <div class="d-flex flex-wrap gap-3">
+                    {% if not user.is_authenticated %}
+                        <a href="{% url 'portfolio:signup' %}" class="btn btn-copper btn-lg px-4 py-3 shadow">
+                            <i class="fas fa-user-plus me-2"></i>Get Started
                         </a>
-                    </div>
+                        <a href="{% url 'portfolio:job_list' %}" class="btn btn-outline-secondary btn-lg px-4 py-3">
+                            <i class="fas fa-search me-2"></i>Browse Jobs
+                        </a>
+                    {% else %}
+                        <a href="{% url 'portfolio:feed' %}" class="btn btn-copper btn-lg px-4 py-3 shadow">
+                            <i class="fas fa-stream me-2"></i>Your Feed
+                        </a>
+                        <a href="{% url 'portfolio:job_list' %}" class="btn btn-outline-secondary btn-lg px-4 py-3">
+                            <i class="fas fa-search me-2"></i>Explore Jobs
+                        </a>
+                    {% endif %}
                 </div>
-
-                <div class="row g-4">
-                    {# Active courses #}
-                    <div class="col-lg-8">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="fw-bold mb-0">My Active Courses</h5>
-                            <a href="{% url 'user_courses' %}" class="btn btn-sm btn-link">View all</a>
-                        </div>
-                        <div class="row g-3">
-                            {% for item in course_progress %}
-                            <div class="col-md-6">
-                                <div class="card border-0 shadow-sm rounded-4 h-100">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="badge bg-primary">{{ item.course.course_code }}</span>
-                                            <small class="text-muted">{{ item.progress.chapters_completed }}/{{ item.progress.total_chapters }} lessons</small>
-                                        </div>
-                                        <h6 class="fw-bold mb-2">{{ item.course.title|truncatechars:40 }}</h6>
-                                        <div class="progress dashboard-progress mb-2">
-                                            <div class="progress-bar bg-success" style="width: {{ item.percentage }}%;"></div>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center mt-3">
-                                            <span class="small text-muted">
-                                                <i class="fas fa-clock me-1"></i> {{ item.progress.time_spent }} min
-                                            </span>
-                                            <a href="{% url 'course_module_detail' course_slug=item.course.slug module_id=item.progress.current_chapter %}" 
-                                               class="btn btn-sm btn-outline-primary rounded-pill">
-                                                Continue
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <div class="col-12 text-center py-4">
-                                <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
-                                <p class="mb-0">You are not enrolled in any active courses.</p>
-                                <a href="{% url 'course_list' %}" class="btn btn-primary mt-3 rounded-pill">
-                                    Browse Courses
-                                </a>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        {# Upcoming assignments #}
-                        {% if upcoming_assignments %}
-                        <div class="mt-5">
-                            <h5 class="fw-bold mb-3">Upcoming Assignments</h5>
-                            <div class="list-group">
-                                {% for assignment in upcoming_assignments %}
-                                <a href="{% url 'assignment_detail' assignment.assignment_id %}" 
-                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border-0 shadow-sm">
-                                    <div>
-                                        <h6 class="fw-bold mb-1">{{ assignment.title }}</h6>
-                                        <small class="text-muted">{{ assignment.course.title }}</small>
-                                    </div>
-                                    <div class="text-end">
-                                        <span class="badge bg-warning text-dark">Due {{ assignment.due_date|date:"M d, Y" }}</span>
-                                    </div>
-                                </a>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    {# Sidebar: quick stats & certificates #}
-                    <div class="col-lg-4">
-                        <div class="card border-0 shadow-sm rounded-4 mb-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold mb-3">Your Stats</h6>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted">Enrolled courses</span>
-                                    <span class="fw-bold">{{ enrollments|length }}</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted">Completed courses</span>
-                                    <span class="fw-bold">{{ completed_count }}</span>
-                                </div>
-                                <div class="d-flex justify-content-between">
-                                    <span class="text-muted">Certificates earned</span>
-                                    <span class="fw-bold">{{ certificates_count }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card border-0 shadow-sm rounded-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold mb-3">Recent Certificates</h6>
-                                {% for cert in recent_certificates %}
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="flex-shrink-0">
-                                        <i class="fas fa-certificate fa-2x text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="fw-bold mb-0">{{ cert.course.title }}</h6>
-                                        <small class="text-muted">{{ cert.issued_date|date:"M Y" }}</small>
-                                    </div>
-                                </div>
-                                {% empty %}
-                                <p class="text-muted small mb-0">No certificates yet. Keep learning!</p>
-                                {% endfor %}
-                                {% if certificates_count > 0 %}
-                                <a href="{% url 'user_certificates' %}" class="btn btn-sm btn-outline-primary w-100 mt-3 rounded-pill">
-                                    View all certificates
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
+                <div class="mt-4 d-flex align-items-center gap-4">
+                    <div><i class="fas fa-check-circle text-deriv-copper me-1"></i> 10k+ jobs</div>
+                    <div><i class="fas fa-check-circle text-deriv-copper me-1"></i> 50k+ users</div>
+                    <div><i class="fas fa-check-circle text-deriv-copper me-1"></i> 2k+ companies</div>
                 </div>
             </div>
-        </section>
-
-    {# -------------------- PUBLIC HOMEPAGE (visitors & unauthenticated) -------------------- #}
-    {% else %}
-        {# Hero Section – exactly as you designed #}
-        <section class="hero text-white d-flex align-items-center justify-content-center">
-            <div class="container text-center" data-animate>
-                <h1 class="display-3 fw-bold mb-4">Hi, I'm Robert Sichomba</h1>
-                <p class="lead mb-5 col-lg-8 mx-auto">
-                    I Transform data into insightful interpretation, develop A levels and Undergraduate STEM courses, and building intelligent solutions that empower businesses and individuals.
-                    Based in Zambia, passionate about Computational Physics and it's applications, Data Science and Exploration Geology, AI and Machine Learning Research, Building EdTech tools that facilitate teacher and student productivity, and Automation Solutions.
-                </p> 
-                <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
-                    <a href="{% url 'projects_list' %}" class="btn btn-light btn-lg px-4 me-sm-3">View My Work <i class="fas fa-arrow-right ms-2"></i></a>
-                    <a href="{% url 'course_list' %}" class="btn btn-light btn-lg px-4 me-sm-3">View Some Courses <i class="fas fa-arrow-right ms-2"></i></a>
-                   
-                    <a href="{% url 'contact' %}" class="btn btn-outline-light btn-lg px-4">Get in Touch <i class="fas fa-envelope ms-2"></i></a>
-                </div>
+            <div class="col-lg-6">
+                <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" 
+                     alt="Professionals collaborating" class="img-fluid rounded-4 shadow-lg">
             </div>
-        </section>
+        </div>
+    </div>
+    <!-- decorative wave -->
+    <div class="position-absolute bottom-0 start-0 w-100" style="line-height: 0;">
+        <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
+        </svg>
+    </div>
+</section>
 
-        <hr class="my-5">
-
-        {# Services Section #}
-        <section class="py-5" data-animate>
-            <div class="container my-5">
-                <h2 class="text-center fw-bold mb-5">Services</h2>
-                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                    <div class="col">
-                        <div class="service-card">
-                            <div class="service-icon"><i class="fas fa-chart-line"></i></div>
-                            <h4 class="fw-bold">Data Analysis, Visualization & Reporting</h4>
-                            <p>We collect data, preprocess, extract meaningful insights from different types of datasets, presentation through interactive, clear visualizations and report documentation.</p>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="service-card">
-                            <div class="service-icon"><i class="fas fa-brain"></i></div>
-                            <h4 class="fw-bold">Research, Consultation & Collaboration</h4>
-                            <p>Developing intelligent models that facilitate and enhance research processes.</p>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="service-card">
-                            <div class="service-icon"><i class="fas fa-code"></i></div>
-                            <h4 class="fw-bold">Web Application Development</h4>
-                            <p>Building robust, scalable, and user-friendly web applications using modern full-stack technologies. You want a website for your business, portfolio, EdTech, etc we have you covered.</p>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="service-card">
-                            <div class="service-icon"><i class="fas fa-graduation-cap"></i></div>
-                            <h4 class="fw-bold">Educational Services</h4>
-                            <p>Designing and developing engaging digital learning tools to enhance educational experiences and outcomes. Offering Introductory and Intermediate hands on courses</p>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="service-card">
-                            <div class="service-icon"><i class="fas fa-database"></i></div>
-                            <h4 class="fw-bold">Database Management</h4>
-                            <p>Designing, implementing, and optimizing databases for efficient data storage and retrieval.</p>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="service-card">
-                            <div class="service-icon"><i class="fas fa-cloud"></i></div>
-                            <h4 class="fw-bold">Cloud Deployment</h4>
-                            <p>Deploying and managing applications on cloud platforms like AWS, Azure, Google Cloud, or Render for scalability and reliability.</p>
-                        </div>
-                    </div>
-                </div>
+<!-- Stats Section (cards) -->
+<section class="container py-5">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 text-center p-4">
+                <div class="display-4 text-deriv-green mb-3"><i class="fas fa-briefcase"></i></div>
+                <h3 class="fw-bold text-deriv-copper">{{ job_count|default:"10k+" }}</h3>
+                <p class="text-secondary">Jobs Posted</p>
             </div>
-        </section>
-
-        <hr class="my-5">
-
-        {# Featured Projects Section #}
-        <section class="bg-light py-5" data-animate>
-            <div class="container my-5">
-                <h2 class="text-center fw-bold mb-5">Featured Projects</h2>
-                <div class="row row-cols-1 row-cols-md-2 g-4">
-                    {% for project in featured_projects %}
-                    <div class="col">
-                        <div class="project-card position-relative">
-                            {% if project.is_featured %}
-                            <span class="project-badge">Featured</span>
-                            {% endif %}
-                            {% if project.image %}
-                            <img src="{{ project.image.url }}" class="card-img-top mb-3" alt="{{ project.title }}" style="height: 200px; object-fit: cover; border-radius: 12px;">
-                            {% endif %}
-                            <div class="card-body p-0">
-                                <h5 class="card-title fw-bold">{{ project.title }}</h5>
-                                <p class="card-text text-muted mb-2">{{ project.status|title }}</p>
-                                <p class="card-text">{{ project.description|truncatewords:20 }}</p>
-                                <div class="tech-tags mb-3">
-                                    {% for skill in project.skills_used.all|slice:":4" %}
-                                    <span>{{ skill.name }}</span>
-                                    {% endfor %}
-                                </div>
-                                <div class="mt-3">
-                                    <a href="{% url 'project_detail' project.slug %}" class="btn btn-project">
-                                        <i class="fas fa-arrow-right"></i> View Details
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="col-12 text-center">
-                        <p class="lead text-muted">Projects are being prepared. Check back soon!</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="text-center mt-5">
-                    <a href="{% url 'projects_list' %}" class="btn btn-primary btn-lg">Browse All Projects <i class="fas fa-long-arrow-alt-right ms-2"></i></a>
-                </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 text-center p-4">
+                <div class="display-4 text-deriv-green mb-3"><i class="fas fa-users"></i></div>
+                <h3 class="fw-bold text-deriv-copper">{{ user_count|default:"50k+" }}</h3>
+                <p class="text-secondary">Active Users</p>
             </div>
-        </section>
-
-        {# Featured Courses Section #}
-        {% if featured_courses %}
-        <section class="py-5" data-animate>
-            <div class="container my-5">
-                <h2 class="text-center fw-bold mb-5">Featured Courses</h2>
-                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-                    {% for course in featured_courses %}
-                    <div class="col">
-                        <div class="card text-center h-100 shadow-sm p-3 border-0">
-                            <div class="card-body">
-                                {% if course.thumbnail %}
-                                <img src="{{ course.thumbnail.url }}" class="rounded-circle mb-3" style="width: 80px; height: 80px; object-fit: cover;" alt="{{ course.title }}">
-                                {% else %}
-                                <i class="fas fa-graduation-cap fa-3x text-primary mb-3"></i>
-                                {% endif %}
-                                <h5 class="card-title fw-bold">{{ course.title }}</h5>
-                                <p class="card-text small text-muted mb-3">{{ course.description|truncatewords:10 }}</p>
-                                <span class="badge bg-{% if course.difficulty == 'introductory' %}success{% elif course.difficulty == 'intermediate' %}warning{% else %}danger{% endif %} mb-2">{{ course.get_difficulty_display }}</span>
-                                <div class="mt-auto">
-                                    <a href="{% url 'course_detail' course.slug %}" class="btn btn-sm btn-outline-primary mt-auto">View Course <i class="fas fa-arrow-right ms-2"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-            
-                <div class="text-center mt-5">
-                    <a href="{% url 'course_list' %}" class="btn btn-primary btn-lg">Browse All Courses <i class="fas fa-long-arrow-alt-right ms-2"></i></a>
-                </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 text-center p-4">
+                <div class="display-4 text-deriv-green mb-3"><i class="fas fa-building"></i></div>
+                <h3 class="fw-bold text-deriv-copper">{{ company_count|default:"2k+" }}</h3>
+                <p class="text-secondary">Companies Hiring</p>
             </div>
-        </section>
-        {% endif %}
+        </div>
+    </div>
+</section>
 
-        {# Explore My Resources & Insights #}
-        <section class="py-5" data-animate>
-            <div class="container my-5">
-                <h2 class="text-center fw-bold mb-5">Explore My Resources & Insights</h2>
-                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-                    <div class="col">
-                        <div class="card text-center h-100 shadow-sm p-3 resource-card">
-                            <div class="card-body">
-                                <i class="fas fa-book-open fa-3x text-primary mb-3"></i>
-                                <h5 class="card-title fw-bold">Recommended Books</h5>
-                                <p class="card-text mb-3">Dive into my curated collection of influential reads on tech and growth.</p>
-                                <a href="{% url 'books_list' %}" class="btn btn-sm btn-outline-primary mt-auto">View Books <i class="fas fa-arrow-right ms-2"></i></a>
-                            </div>
+<!-- Featured Jobs Section -->
+<section class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="fas fa-star text-deriv-copper me-2"></i>Featured Jobs</h2>
+        <a href="{% url 'portfolio:job_list' %}" class="btn btn-link text-deriv-copper">View all <i class="fas fa-arrow-right ms-1"></i></a>
+    </div>
+    <div class="row g-4">
+        {% for job in featured_jobs %}
+        <div class="col-lg-4 col-md-6">
+            <div class="card h-100 border-0 shadow-sm hover-lift">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-light rounded p-2 me-3">
+                            <i class="fas fa-building fa-2x text-deriv-copper"></i>
+                        </div>
+                        <div>
+                            <h5 class="card-title mb-1">{{ job.title }}</h5>
+                            <p class="text-secondary small mb-0">{{ job.company.name|default:job.employer.display_name }}</p>
                         </div>
                     </div>
-                    <div class="col">
-                        <div class="card text-center h-100 shadow-sm p-3 resource-card">
-                            <div class="card-body">
-                                <i class="fas fa-newspaper fa-3x text-success mb-3"></i>
-                                <h5 class="card-title fw-bold">Latest Blog Posts</h5>
-                                <p class="card-text mb-3">Read my articles, tutorials, and deep dives into data science and tech trends.</p>
-                                <a href="{% url 'blog_list' %}" class="btn btn-sm btn-outline-success mt-auto">Read Blog <i class="fas fa-arrow-right ms-2"></i></a>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <span class="badge bg-deriv-green me-1">{{ job.get_employment_type_display }}</span>
+                        <span class="badge bg-secondary">{{ job.get_remote_status_display }}</span>
                     </div>
-                    <div class="col">
-                        <div class="card text-center h-100 shadow-sm p-3 resource-card">
-                            <div class="card-body">
-                                <i class="fas fa-sticky-note fa-3x text-info mb-3"></i>
-                                <h5 class="card-title fw-bold">My Personal Notes</h5>
-                                <p class="card-text mb-3">Quick insights, summaries, and learnings from my studies and projects.</p>
-                                <a href="{% url 'notes_list' %}" class="btn btn-sm btn-outline-info mt-auto">View Notes <i class="fas fa-arrow-right ms-2"></i></a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card text-center h-100 shadow-sm p-3 resource-card">
-                            <div class="card-body">
-                                <i class="fas fa-video fa-3x text-warning mb-3"></i>
-                                <h5 class="card-title fw-bold">Meetings</h5>
-                                <p class="card-text mb-3">Book one-on-one consultations or join group lectures.</p>
-                                <a href="{% url 'meetings_list' %}" class="btn btn-sm btn-outline-warning mt-auto">View Meetings <i class="fas fa-arrow-right ms-2"></i></a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card text-center h-100 shadow-sm p-3 resource-card">
-                            <div class="card-body">
-                                <i class="fas fa-file-alt fa-3x text-danger mb-3"></i>
-                                <h5 class="card-title fw-bold">Important Documents</h5>
-                                <p class="card-text mb-3">Access reports, research papers, and compiled documents.</p>
-                                <a href="{% url 'documents_list' %}" class="btn btn-sm btn-outline-danger mt-auto">View Documents <i class="fas fa-arrow-right ms-2"></i></a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {# Testimonials Carousel Section #}
-        <section class="py-5 bg-light" data-animate>
-            <div class="container my-5">
-                <h2 class="text-center fw-bold mb-5">What Clients Say</h2>
-                <div id="testimonialCarousel" class="carousel slide" data-bs-ride="carousel">
-                    <div class="carousel-inner">
-                        {% for testimonial in testimonials %}
-                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                            <div class="testimonial-content">
-                                <p>"{{ testimonial.content }}"</p>
-                                <h5 class="mt-4">- {{ testimonial.author }}</h5>
-                                {% if testimonial.role %}
-                                <p class="text-muted">{{ testimonial.role }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% empty %}
-                        <div class="carousel-item active">
-                            <div class="testimonial-content">
-                                <p>"Robert's insights on our data analytics project were invaluable. The deliverables were professional, accurate, and truly helped us make informed decisions. Highly recommended!"</p>
-                                <h5 class="mt-4">- Thomas Mbewe</h5>
-                                <p class="text-muted">CEO, Transact Ltd.</p>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <button class="carousel-control-prev" type="button" data-bs-target="#testimonialCarousel" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                        <span class="visually-hidden">Previous</span>
-                    </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#testimonialCarousel" data-bs-slide="next">
-                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                        <span class="visually-hidden">Next</span>
-                    </button>
-                    <div class="carousel-indicators">
-                        {% for testimonial in testimonials %}
-                        <button type="button" data-bs-target="#testimonialCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active" aria-current="true"{% endif %} aria-label="Slide {{ forloop.counter }}"></button>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="text-center mt-5">
-                    <a href="{% url 'testimonials_list' %}" class="btn btn-outline-primary btn-lg">Read All Testimonials <i class="fas fa-users ms-2"></i></a>
-                </div>
-            </div>
-        </section>
-
-        <hr class="my-5">
-
-        {# Call to Action #}
-        <section class="py-5 bg-dark text-white text-center" data-animate>
-            <div class="container my-5">
-                <div class="col-lg-8 mx-auto">
-                    <h2 class="fw-bold mb-4">Ready to Collaborate?</h2>
-                    <p class="lead mb-4">
-                        Whether you're looking for data-driven insights, an intelligent software solution, or a reliable web application, I am here to help. Let's discuss how my expertise can bring your vision to life.
+                    <p class="card-text small text-secondary">
+                        <i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}
                     </p>
-                    <a href="{% url 'contact' %}" class="btn btn-primary btn-lg me-3">Let's Talk <i class="fas fa-comment-dots ms-2"></i></a>
-                    <a href="{% url 'about' %}" class="btn btn-outline-light btn-lg">Learn More About Me <i class="fas fa-info-circle ms-2"></i></a>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-secondary"><i class="far fa-clock me-1"></i>{{ job.created_at|timesince }} ago</span>
+                        <a href="{% url 'portfolio:job_detail' job.slug %}" class="btn btn-sm btn-outline-copper">View Job</a>
+                    </div>
                 </div>
             </div>
-        </section>
-    {% endif %}
-{% endblock %}
+        </div>
+        {% empty %}
+        <p class="text-secondary">No featured jobs yet.</p>
+        {% endfor %}
+    </div>
+</section>
 
-{% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize carousel
-        var testimonialCarousel = new bootstrap.Carousel(document.getElementById('testimonialCarousel'), {
-            interval: 5000,
-            wrap: true
-        });
-    });
-</script>
+<!-- Employer Call-to-Action -->
+<section class="container py-5">
+    <div class="row align-items-center bg-dark text-white rounded-4 p-5 shadow-lg" style="background: linear-gradient(145deg, #1e2a3a 0%, #0f172a 100%);">
+        <div class="col-lg-7 mb-4 mb-lg-0">
+            <h2 class="display-6 fw-bold mb-3">Are you hiring? Find top talent today.</h2>
+            <p class="lead text-white-50 mb-4">Post your jobs and connect with thousands of qualified professionals across Africa.</p>
+            <a href="{% url 'portfolio:post_job' %}" class="btn btn-copper btn-lg px-5 py-3 shadow">
+                <i class="fas fa-bullhorn me-2"></i>Post a Job – It's Free!
+            </a>
+        </div>
+        <div class="col-lg-5 text-center">
+            <i class="fas fa-chart-line fa-6x text-copper opacity-50"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Success Stories / Testimonials (optional) -->
+<section class="container py-5">
+    <h2 class="fw-bold text-center mb-5">What our members say</h2>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-4">
+                <i class="fas fa-quote-left fa-2x text-deriv-copper mb-3"></i>
+                <p class="flex-grow-1">"Deriv.Ed connected me with my dream job in Nairobi. The matching algorithm is incredible!"</p>
+                <div class="d-flex align-items-center">
+                    <img src="https://ui-avatars.com/api/?name=Grace+M&background=198754&color=fff&size=50" class="rounded-circle me-3" width="50">
+                    <div>
+                        <h6 class="mb-0">Grace M.</h6>
+                        <small class="text-secondary">Software Engineer</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-4">
+                <i class="fas fa-quote-left fa-2x text-deriv-copper mb-3"></i>
+                <p class="flex-grow-1">"As an employer, we found our lead developer within a week. Highly recommend!"</p>
+                <div class="d-flex align-items-center">
+                    <img src="https://ui-avatars.com/api/?name=James+K&background=198754&color=fff&size=50" class="rounded-circle me-3" width="50">
+                    <div>
+                        <h6 class="mb-0">James K.</h6>
+                        <small class="text-secondary">CTO, M-KOPA</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-4">
+                <i class="fas fa-quote-left fa-2x text-deriv-copper mb-3"></i>
+                <p class="flex-grow-1">"The network I built here opened doors I never imagined. Thank you Deriv.Ed!"</p>
+                <div class="d-flex align-items-center">
+                    <img src="https://ui-avatars.com/api/?name=Amina+S&background=198754&color=fff&size=50" class="rounded-circle me-3" width="50">
+                    <div>
+                        <h6 class="mb-0">Amina S.</h6>
+                        <small class="text-secondary">Marketing Lead</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 {% endblock %}

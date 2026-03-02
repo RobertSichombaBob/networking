@@ -1,1312 +1,1312 @@
-# D:\Django Projects\SichombaRobertTrail - Copy\myportfolio\portfolio\views.py
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
-from django.contrib import messages
-from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.conf import settings
-from django.http import JsonResponse, HttpResponse, Http404, FileResponse
-from django.views.generic import TemplateView, ListView, DetailView
-from django.utils.decorators import method_decorator
-from django.db.models import Q, Count, Avg, Sum
-from django.core.paginator import Paginator
-from django.core.mail import send_mail
-from django.utils import timezone
-import datetime
+# portfolio/views.py
 import json
+from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.views import LoginView as AuthLoginView, LogoutView as AuthLogoutView
+from django.contrib.auth.views import PasswordResetView as AuthPasswordResetView
+from django.contrib.auth.views import PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.db.models import Q, Count, Prefetch
+from django.http import JsonResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.views import View
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView, TemplateView
 
-import os
+from . import models as m
+from . import forms as f
 
-# Import all models
-from .models import (
-    CustomUser, Skill, Project, Testimonial, BlogPost,
-    Note, Document, Book, Meeting, ContactMessage,
-    Course, Enrollment, UserProgress, CourseModule, Lesson,
-    Assignment, Submission, EmailVerification, ParentConnection,
-    Certificate, CourseReview
-)
+from .models import Skill, Company
+# =============================================================================
+# MIXINS
+# =============================================================================
 
-# Import all forms
-from .forms import (
-    SignUpForm, CustomAuthenticationForm, ContactForm,
-    CourseRegistrationForm, CourseLoginForm, CourseEnrollmentForm,
-    AssignmentSubmissionForm, ParentConnectionForm, EmailVerificationForm,
-    UserProfileUpdateForm, CourseInquiryForm, CustomPasswordResetForm,
-    CustomSetPasswordForm
-)
-
-# ============================================================================
-# CORE PORTFOLIO VIEWS
-# ============================================================================
-
-def portfolio_home(request):
-    """Home page – redirects to about if not authenticated, shows dashboard if authenticated."""
-    if not request.user.is_authenticated:
-        return redirect('about')
-    
-    user = request.user
-    
-    if user.role == 'visitor':
-        # Portfolio visitor dashboard
-        featured_projects = Project.objects.filter(is_featured=True, status='completed')[:3]
-        latest_blog_posts = BlogPost.objects.filter(
-            is_published=True,
-            access_level__in=['public', 'registered']
-        ).order_by('-created_at')[:3]
-        testimonials = Testimonial.objects.filter(is_featured=True)[:3]
-        featured_courses = Course.objects.filter(is_featured=True, is_active=True)[:3]
-        
-        context = {
-            'featured_projects': featured_projects,
-            'latest_blog_posts': latest_blog_posts,
-            'testimonials': testimonials,
-            'featured_courses': featured_courses,
-            'page_title': "Welcome to Your Portfolio Dashboard"
-        }
-        return render(request, 'home.html', context)
-    
-    elif user.role in ['student', 'instructor', 'parent']:
-        return redirect('dashboard')
-    else:
-        # Admin or other roles
-        return render(request, 'admin_dashboard.html')
-
-
-def about(request):
-    """Public about page."""
-    skills = Skill.objects.all().order_by('-proficiency')
-    testimonials = Testimonial.objects.filter(is_featured=True)[:3]
-    
-    context = {
-        'skills': skills,
-        'testimonials': testimonials,
-        'page_title': 'About Me'
-    }
-    return render(request, 'about.html', context)
-
-
-def portfolio_signup(request):
-    """Portfolio visitor signup."""
-    if request.user.is_authenticated:
-        messages.info(request, "You are already logged in.")
-        return redirect('home')
-    
-    if request.method == 'POST':
-        form = SignUpForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Account created successfully! Welcome.')
-            return redirect('home')
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field.replace('_', ' ').capitalize()}: {error}")
-    else:
-        form = SignUpForm()
-    
-    context = {'form': form, 'page_title': 'Sign Up'}
-    return render(request, 'registration/signup.html', context)
-
-
-def portfolio_login(request):
-    """Portfolio visitor login."""
-    if request.user.is_authenticated:
-        messages.info(request, "You are already logged in.")
-        return redirect('home')
-    
-    if request.method == 'POST':
-        form = CustomAuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            messages.success(request, f"Welcome back, {user.get_display_name()}!")
-            next_url = request.GET.get('next', 'home')
-            return redirect(next_url)
-        else:
-            messages.error(request, "Invalid email or password.")
-    else:
-        form = CustomAuthenticationForm()
-    
-    context = {'form': form, 'page_title': 'Login'}
-    return render(request, 'registration/login.html', context)
-
-
-def portfolio_logout(request):
-    """Logout for portfolio users."""
-    logout(request)
-    messages.info(request, "You have been logged out.")
-    return redirect('about')
-
-
-def contact(request):
-    if request.method == 'POST':
-        form = ContactForm(request.POST)
-        if form.is_valid():
-            try:
-                # Save the message to database (if your form has a save method)
-                contact_message = form.save(user=request.user if request.user.is_authenticated else None)
-            except Exception as e:
-                logger.error(f"Error saving contact message: {e}")
-                messages.error(request, 'There was an error saving your message.')
-                return redirect('contact')
-            
-            # Try to send email, but don't crash if it fails
-            try:
-                send_mail(
-                    f"New Contact: {form.cleaned_data['subject']}",
-                    f"From: {form.cleaned_data['name']} ({form.cleaned_data['email']})\n\n{form.cleaned_data['message']}",
-                    settings.DEFAULT_FROM_EMAIL,
-                    [settings.CONTACT_EMAIL],
-                    fail_silently=True,   # Don't raise exception on failure
-                )
-                messages.success(request, 'Your message has been sent!')
-            except Exception as e:
-                logger.error(f"Error sending email: {e}")
-                messages.warning(request, 'Your message was saved, but email notification could not be sent.')
-            
-            return redirect('contact')
-    else:
-        form = ContactForm()
-    
-    context = {'form': form, 'page_title': 'Contact'}
-    return render(request, 'contact.html', context)
-
-def terms(request):
-    """Terms and conditions."""
-    return render(request, 'terms.html', {'page_title': 'Terms of Service'})
-
-
-def privacy(request):
-    """Privacy policy."""
-    return render(request, 'privacy.html', {'page_title': 'Privacy Policy'})
-
-
-# ============================================================================
-# PORTFOLIO CONTENT VIEWS
-# ============================================================================
-
-def projects_list(request):
-    """List all projects."""
-    projects = Project.objects.all().order_by('-created_at')
-    skills = Skill.objects.all()
-    completed_count = Project.objects.filter(status='completed').count()
-    featured_count = Project.objects.filter(is_featured=True).count()
-    
-    context = {
-        'projects': projects,
-        'skills': skills,
-        'completed_count': completed_count,
-        'featured_count': featured_count,
-        'page_title': 'My Projects'
-    }
-    return render(request, 'projects/projects_list.html', context)
-
-
-def project_detail(request, slug):
-    """Project detail view."""
-    project = get_object_or_404(Project, slug=slug)
-    
-    # Simple access check (private projects only for staff)
-    if project.status == 'private' and not request.user.is_staff:
-        raise Http404("Project not found")
-    
-    # Related projects (same skills)
-    related_projects = Project.objects.filter(
-        skills_used__in=project.skills_used.all()
-    ).exclude(id=project.id).distinct()[:3]
-    
-    context = {
-        'project': project,
-        'related_projects': related_projects,
-        'page_title': project.title
-    }
-    return render(request, 'projects/project_detail.html', context)
-
-
-import logging
-logger = logging.getLogger(__name__)
-
-def testimonials_list(request):
-    try:
-        testimonials = Testimonial.objects.all().order_by('-created_at')
-        featured_testimonials = testimonials.filter(is_featured=True)
-        featured_count = featured_testimonials.count()
-        client_count = testimonials.filter(role__icontains='CEO') | testimonials.filter(role__icontains='Manager')
-        student_count = testimonials.filter(role__icontains='Student')
-        context = {
-            'testimonials': testimonials,
-            'featured_testimonials': featured_testimonials,
-            'featured_count': featured_count,
-            'client_count': client_count.count(),
-            'student_count': student_count.count(),
-            'page_title': 'Testimonials'
-        }
-        return render(request, 'testimonials/testimonials_list.html', context)
-    except Exception as e:
-        logger.exception("Error in testimonials_list")
-        # Return a simple page with a friendly message instead of crashing
-        return render(request, 'testimonials/testimonials_list.html', {'testimonials': []})
-
-@login_required
-def blog_list(request):
-    """List blog posts with access control."""
-    if request.user.is_superuser or request.user.is_staff:
-        blog_posts = BlogPost.objects.filter(is_published=True).order_by('-created_at')
-    else:
-        blog_posts = BlogPost.objects.filter(
-            is_published=True,
-            access_level__in=['public', 'registered']
-        ).order_by('-created_at')
-    
-    # Pagination
-    paginator = Paginator(blog_posts, 9)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    category_choices = BlogPost.CATEGORY_CHOICES
-    current_category = request.GET.get('category')
-    
-    # Category counts
-    category_counts = {}
-    for value, _ in category_choices:
-        count = BlogPost.objects.filter(category=value, is_published=True).count()
-        category_counts[value] = count
-    
-    recent_posts = BlogPost.objects.filter(is_published=True).order_by('-created_at')[:5]
-    
-    context = {
-        'blog_posts': page_obj,
-        'page_obj': page_obj,
-        'is_paginated': paginator.num_pages > 1,
-        'category_choices': category_choices,
-        'current_category': current_category,
-        'category_counts': category_counts,
-        'recent_posts': recent_posts,
-        'total_posts': blog_posts.count(),
-        'page_title': 'Blog'
-    }
-    return render(request, 'blog/blog_list.html', context)
-
-
-@login_required
-def blog_detail(request, slug):
-    """Blog post detail with access control."""
-    blog_post = get_object_or_404(BlogPost, slug=slug)
-    
-    # Access control
-    if not blog_post.is_published:
-        raise Http404("Blog post not found.")
-    
-    if blog_post.access_level == 'private':
-        if not (request.user.is_staff or request.user.is_superuser):
-            raise Http404("Blog post not found.")
-    elif blog_post.access_level == 'registered':
-        if not request.user.is_authenticated:
-            messages.warning(request, "Please login to view this content.")
-            return redirect('portfolio_login')
-    elif blog_post.access_level == 'course_students':
-        if not blog_post.related_courses.exists():
-            # No specific course, treat as registered
-            if not request.user.is_authenticated:
-                messages.warning(request, "Please login to view this content.")
-                return redirect('portfolio_login')
-        else:
-            # Check if user is enrolled in any of the related courses
-            enrolled = Enrollment.objects.filter(
-                user=request.user,
-                course__in=blog_post.related_courses.all()
-            ).exists()
-            if not enrolled and not request.user.is_staff:
-                messages.error(request, "You must be enrolled in the related course to view this content.")
-                return redirect('course_list')
-    
-    # Increment view count
-    blog_post.views += 1
-    blog_post.save(update_fields=['views'])
-    
-    # Related posts
-    related_posts = BlogPost.objects.filter(
-        category=blog_post.category,
-        is_published=True
-    ).exclude(id=blog_post.id)[:3]
-    
-    # Popular posts
-    popular_posts = BlogPost.objects.filter(is_published=True).order_by('-views')[:5]
-    
-    context = {
-        'blog_post': blog_post,
-        'related_posts': related_posts,
-        'popular_posts': popular_posts,
-        'page_title': blog_post.title
-    }
-    return render(request, 'blog/blog_detail.html', context)
-
-
-@login_required
-def notes_list(request):
-    """List notes with access control."""
-    if request.user.is_superuser or request.user.is_staff:
-        notes = Note.objects.filter(is_published=True).order_by('-created_at')
-    else:
-        notes = Note.objects.filter(
-            is_published=True,
-            access_level__in=['public', 'registered']
-        ).order_by('-created_at')
-        
-        # Add user's own private notes
-        private_notes = Note.objects.filter(
-            author=request.user,
-            is_published=True,
-            access_level='private'
+class EmployerRequiredMixin(UserPassesTestMixin):
+    """Require user to be an employer or admin."""
+    def test_func(self):
+        return self.request.user.is_authenticated and (
+            self.request.user.role in [m.CustomUser.Role.EMPLOYER, m.CustomUser.Role.ADMIN]
         )
-        notes = notes | private_notes
-    
-    # Pagination
-    paginator = Paginator(notes, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    recent_notes = notes[:5]
-    
-    context = {
-        'notes': page_obj,
-        'page_obj': page_obj,
-        'is_paginated': paginator.num_pages > 1,
-        'recent_notes': recent_notes,
-        'total_notes': notes.count(),
-        'public_notes': Note.objects.filter(is_published=True, access_level='public').count(),
-        'my_notes': Note.objects.filter(author=request.user).count(),
-        'page_title': 'Notes'
-    }
-    return render(request, 'notes/notes_list.html', context)
 
 
-@login_required
-def note_detail(request, slug):
-    """Note detail with access control."""
-    note = get_object_or_404(Note, slug=slug)
-    
-    if not note.is_published:
-        raise Http404("Note not found.")
-    
-    # Access control
-    if note.access_level == 'private':
-        if note.author != request.user and not request.user.is_staff:
-            raise Http404("Note not found.")
-    elif note.access_level == 'registered':
-        if not request.user.is_authenticated:
-            messages.warning(request, "Please login to view this content.")
-            return redirect('portfolio_login')
-    elif note.access_level == 'course_students':
-        if note.course:
-            enrolled = Enrollment.objects.filter(
-                user=request.user,
-                course=note.course
-            ).exists()
-            if not enrolled and not request.user.is_staff:
-                messages.error(request, "You must be enrolled in the course to view this note.")
-                return redirect('course_detail', slug=note.course.slug)
-    
-    # Related notes
-    related_notes = Note.objects.filter(
-        author=note.author,
-        is_published=True
-    ).exclude(id=note.id)[:5]
-    
-    context = {
-        'note': note,
-        'related_notes': related_notes,
-        'page_title': note.title
-    }
-    return render(request, 'notes/note_detail.html', context)
-
-
-@login_required
-def documents_list(request):
-    """List documents with access control."""
-    base_qs = Document.objects.filter(is_published=True)
-
-    if request.user.is_superuser or request.user.is_staff:
-        documents = base_qs.order_by('-uploaded_at')
-    else:
-        # Public and registered
-        documents = base_qs.filter(
-            access_level__in=['public', 'registered']
-        ).order_by('-uploaded_at')
-
-        # Course student accessible documents
-        enrolled_courses = Enrollment.objects.filter(user=request.user).values_list('course', flat=True)
-        course_docs = base_qs.filter(
-            access_level='course_students',
-            course__in=enrolled_courses
+class JobSeekerRequiredMixin(UserPassesTestMixin):
+    """Require user to be a job seeker or admin."""
+    def test_func(self):
+        return self.request.user.is_authenticated and (
+            self.request.user.role in [m.CustomUser.Role.JOB_SEEKER, m.CustomUser.Role.ADMIN]
         )
-        documents = documents | course_docs
-
-        # User's own private documents
-        private_docs = base_qs.filter(
-            owner=request.user,
-            access_level='private'
-        )
-        documents = documents | private_docs
-
-    documents = documents.distinct()
-
-    # Pagination
-    paginator = Paginator(documents, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    top_downloads = Document.objects.filter(is_published=True).order_by('-download_count')[:5]
-
-    # ✅ FIX: Use Sum() directly – no 'models.' prefix
-    total_downloads = Document.objects.aggregate(total=Sum('download_count'))['total'] or 0
-
-    context = {
-        'documents': page_obj,
-        'page_obj': page_obj,
-        'is_paginated': paginator.num_pages > 1,
-        'document_types': Document.DOCUMENT_TYPE_CHOICES,
-        'top_downloads': top_downloads,
-        'total_documents': Document.objects.filter(is_published=True).count(),
-        'total_downloads': total_downloads,
-        'public_documents': Document.objects.filter(is_published=True, access_level='public').count(),
-        'my_documents': Document.objects.filter(owner=request.user).count() if request.user.is_authenticated else 0,
-        'page_title': 'Documents'
-    }
-    return render(request, 'documents/documents_list.html', context)
 
 
-@login_required
-def document_detail(request, slug):
-    """Document detail with inline preview and download."""
-    document = get_object_or_404(Document, slug=slug)
+class ProfileOwnerMixin(UserPassesTestMixin):
+    """Ensure the user is the profile owner."""
+    def test_func(self):
+        profile = self.get_object()
+        return self.request.user == profile.user
 
-    if not document.is_published:
-        raise Http404("Document not found.")
 
-    # Determine preview type based on file extension
-    file_extension = os.path.splitext(document.file.name)[1].lower()
-    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp']
-    text_extensions = ['.txt', '.csv', '.md', '.json', '.xml', '.html', '.css', '.js', '.py', '.java', '.c', '.cpp', '.h', '.rb', '.php']
+class ExperienceOwnerMixin(UserPassesTestMixin):
+    def test_func(self):
+        exp = self.get_object()
+        return self.request.user == exp.user
 
-    if file_extension == '.pdf':
-        preview_type = 'pdf'
-    elif file_extension in image_extensions:
-        preview_type = 'image'
-    elif file_extension in text_extensions:
-        preview_type = 'text'
-    else:
-        preview_type = 'download'   # fallback – only download available
 
-    # Access control (same as before)
-    can_download = False
-    if document.access_level == 'public':
-        can_download = True
-    elif document.access_level == 'registered' and request.user.is_authenticated:
-        can_download = True
-    elif document.access_level == 'course_students':
-        if document.course:
-            enrolled = Enrollment.objects.filter(
-                user=request.user,
-                course=document.course
+class EducationOwnerMixin(UserPassesTestMixin):
+    def test_func(self):
+        edu = self.get_object()
+        return self.request.user == edu.user
+
+
+class PostAuthorMixin(UserPassesTestMixin):
+    def test_func(self):
+        post = self.get_object()
+        return self.request.user == post.author
+
+
+class CommentAuthorMixin(UserPassesTestMixin):
+    def test_func(self):
+        comment = self.get_object()
+        return self.request.user == comment.author
+
+
+class JobOwnerMixin(UserPassesTestMixin):
+    def test_func(self):
+        job = self.get_object()
+        return self.request.user == job.employer
+
+
+class ApplicationOwnerMixin(UserPassesTestMixin):
+    """Job seeker viewing their own application."""
+    def test_func(self):
+        app = self.get_object()
+        return self.request.user == app.user
+
+
+class ApplicationEmployerMixin(UserPassesTestMixin):
+    """Employer viewing an application to their job."""
+    def test_func(self):
+        app = self.get_object()
+        return self.request.user == app.job.employer
+
+
+class CompanyAdminMixin(UserPassesTestMixin):
+    """User is a company admin or staff."""
+    def test_func(self):
+        company = self.get_object()
+        if self.request.user.is_staff:
+            return True
+        if not hasattr(self.request.user, "employer_profile"):
+            return False
+        return self.request.user.employer_profile.company == company and self.request.user.employer_profile.is_company_admin
+
+
+# =============================================================================
+# STATIC PAGES
+# =============================================================================
+
+class HomeView(TemplateView):
+    template_name = "portfolio/home.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["featured_jobs"] = m.Job.objects.filter(
+            is_active=True, moderation_status=m.Moderation.ModerationStatus.OK
+        ).select_related("company", "employer")[:6]
+        context["job_count"] = m.Job.objects.filter(is_active=True).count()
+        context["user_count"] = m.CustomUser.objects.filter(is_active=True).count()
+        context["company_count"] = m.Company.objects.filter(is_verified=True).count()
+        return context
+
+
+class AboutView(TemplateView):
+    template_name = "portfolio/about.html"
+
+
+class ContactView(FormView):
+    template_name = "portfolio/contact.html"
+    form_class = f.ReportForm  # simplified, could be a dedicated ContactForm
+    success_url = reverse_lazy("portfolio:home")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Thank you for contacting us!")
+        return super().form_valid(form)
+
+
+# =============================================================================
+# AUTHENTICATION
+# =============================================================================
+
+class LoginView(AuthLoginView):
+    template_name = "portfolio/auth/login.html"
+
+
+class LogoutView(AuthLogoutView):
+    next_page = reverse_lazy("portfolio:home")
+
+
+class SignUpView(CreateView):
+    model = m.CustomUser
+    form_class = f.CustomUserCreationForm
+    template_name = "portfolio/auth/signup.html"
+    success_url = reverse_lazy("portfolio:edit_profile")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        m.UserProfile.objects.create(user=self.object)
+        if self.object.role == m.CustomUser.Role.EMPLOYER:
+            m.EmployerProfile.objects.create(user=self.object)
+        login(self.request, self.object)
+        messages.success(self.request, "Account created! Please complete your profile.")
+        return response
+
+
+class PasswordResetView(AuthPasswordResetView):
+    template_name = "portfolio/auth/password_reset.html"
+    email_template_name = "portfolio/auth/password_reset_email.html"
+    subject_template_name = "portfolio/auth/password_reset_subject.txt"
+    success_url = reverse_lazy("portfolio:password_reset_done")
+
+
+class PasswordResetDoneView(PasswordResetDoneView):
+    template_name = "portfolio/auth/password_reset_done.html"
+
+
+class PasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = "portfolio/auth/password_reset_confirm.html"
+    success_url = reverse_lazy("portfolio:password_reset_complete")
+
+
+class PasswordResetCompleteView(PasswordResetCompleteView):
+    template_name = "portfolio/auth/password_reset_complete.html"
+
+
+# =============================================================================
+# PROFILE VIEWS
+# =============================================================================
+
+class ProfileView(LoginRequiredMixin, DetailView):
+    model = m.CustomUser
+    template_name = "portfolio/profile/my_profile.html"
+    context_object_name = "profile_user"
+
+    def get_object(self):
+        return self.request.user
+
+
+class PublicProfileView(DetailView):
+    model = m.CustomUser
+    template_name = "portfolio/profile/public_profile.html"
+    context_object_name = "profile_user"
+
+    def get_object(self):
+        obj = super().get_object()
+        if not obj.is_profile_public and self.request.user != obj:
+            raise PermissionDenied("This profile is private.")
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.object
+        context["experiences"] = user.experiences.all()
+        context["education"] = user.education.all()
+        context["skills"] = user.skills.select_related("skill").all()
+        context["posts"] = user.posts.filter(
+            is_deleted=False, moderation_status=m.Moderation.ModerationStatus.OK
+        )[:5]
+
+        if self.request.user.is_authenticated and self.request.user != user:
+            context["is_connected"] = m.Connection.objects.filter(
+                Q(from_user=self.request.user, to_user=user, status=m.Connection.Status.ACCEPTED) |
+                Q(from_user=user, to_user=self.request.user, status=m.Connection.Status.ACCEPTED)
             ).exists()
-            if enrolled or request.user.is_staff:
-                can_download = True
-        elif request.user.is_authenticated:
-            can_download = True
-    elif document.access_level == 'private' and (document.owner == request.user or request.user.is_staff):
-        can_download = True
-
-    # Related documents
-    related_documents = Document.objects.filter(
-        is_published=True
-    ).filter(
-        Q(course=document.course) | Q(owner=document.owner)
-    ).exclude(id=document.id)[:5]
-
-    context = {
-        'document': document,
-        'can_download': can_download,
-        'related_documents': related_documents,
-        'preview_type': preview_type,
-        'page_title': document.title
-    }
-    return render(request, 'documents/document_detail.html', context)
-@login_required
-def document_download(request, slug):
-    """Serve document file with access control."""
-    document = get_object_or_404(Document, slug=slug)
-    
-    # Access control (reuse logic)
-    can_download = False
-    if document.access_level == 'public':
-        can_download = True
-    elif document.access_level == 'registered' and request.user.is_authenticated:
-        can_download = True
-    elif document.access_level == 'course_students':
-        if document.course:
-            enrolled = Enrollment.objects.filter(
-                user=request.user,
-                course=document.course
+            context["has_pending_request"] = m.Connection.objects.filter(
+                from_user=self.request.user, to_user=user, status=m.Connection.Status.PENDING
             ).exists()
-            if enrolled or request.user.is_staff:
-                can_download = True
-        elif request.user.is_authenticated:
-            can_download = True
-    elif document.access_level == 'private' and (document.owner == request.user or request.user.is_staff):
-        can_download = True
-    
-    if not can_download:
-        messages.error(request, "You do not have permission to download this document.")
-        return redirect('document_detail', slug=slug)
-    
-    # Increment download count
-    document.download_count += 1
-    document.save(update_fields=['download_count'])
-    
-    response = FileResponse(
-        document.file.open(),
-        as_attachment=True,
-        filename=document.file.name.split('/')[-1]
-    )
-    return response
+            context["is_following"] = m.Follow.objects.filter(
+                follower=self.request.user, following=user
+            ).exists()
+        return context
 
 
-@login_required
-def books_list(request):
-    """List books."""
-    books = Book.objects.filter(access_level__in=['public', 'registered']).order_by('-created_at')
-    
-    context = {
-        'books': books,
-        'page_title': 'Recommended Books'
-    }
-    return render(request, 'books/books_list.html', context)
+class EditProfileView(LoginRequiredMixin, UpdateView):
+    model = m.UserProfile
+    form_class = f.UserProfileForm
+    template_name = "portfolio/profile/edit_profile.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def get_object(self):
+        return self.request.user.profile
+
+    def form_valid(self, form):
+        messages.success(self.request, "Profile updated.")
+        return super().form_valid(form)
 
 
-@login_required
-def book_detail(request, pk):
-    """Book detail."""
-    book = get_object_or_404(Book, pk=pk)
-    
-    if book.access_level == 'registered' and not request.user.is_authenticated:
-        messages.warning(request, "Please login to view details for this book.")
-        return redirect('portfolio_login')
-    
-    context = {
-        'book': book,
-        'page_title': book.title
-    }
-    return render(request, 'books/book_detail.html', context)
+class EditEmployerProfileView(LoginRequiredMixin, EmployerRequiredMixin, UpdateView):
+    model = m.EmployerProfile
+    form_class = f.EmployerProfileForm
+    template_name = "portfolio/profile/edit_employer_profile.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def get_object(self):
+        return self.request.user.employer_profile
+
+    def form_valid(self, form):
+        messages.success(self.request, "Employer profile updated.")
+        return super().form_valid(form)
 
 
-@login_required
-def meetings_list(request):
-    """List available meetings."""
-    today = datetime.date.today()
-    now = datetime.datetime.now().time()
-    
-    meetings = Meeting.objects.filter(
-        is_active=True,
-        date__gte=today
-    ).order_by('date', 'start_time')
-    
-    # Filter out past times for today
-    meetings = [m for m in meetings if m.date > today or (m.date == today and m.start_time > now)]
-    
-    context = {
-        'meetings': meetings,
-        'page_title': 'Book a Meeting'
-    }
-    return render(request, 'meetings/meetings_list.html', context)
+# =============================================================================
+# COMPANIES
+# =============================================================================
 
+class CompanyListView(ListView):
+    model = m.Company
+    template_name = "portfolio/companies/company_list.html"
+    context_object_name = "companies"
+    paginate_by = 20
 
-@login_required
-def meeting_detail(request, slug):
-    """Meeting detail and booking."""
-    meeting = get_object_or_404(Meeting, slug=slug, is_active=True)
-    
-    if meeting.date < datetime.date.today() or (meeting.date == datetime.date.today() and meeting.start_time < datetime.datetime.now().time()):
-        messages.error(request, "This meeting slot has already passed.")
-        return redirect('meetings_list')
-    
-    if request.method == 'POST':
-        if request.user in meeting.attendees.all():
-            messages.info(request, "You are already registered for this meeting.")
-        elif meeting.max_attendees and meeting.attendees.count() >= meeting.max_attendees:
-            messages.error(request, "This meeting is full. Please choose another slot.")
-        else:
-            meeting.attendees.add(request.user)
-            messages.success(request, f"You have successfully booked your spot for '{meeting.title}'!")
-        return redirect('meeting_detail', slug=slug)
-    
-    is_attendee = request.user in meeting.attendees.all()
-    
-    context = {
-        'meeting': meeting,
-        'is_attendee': is_attendee,
-        'current_attendees_count': meeting.attendees.count(),
-        'page_title': meeting.title
-    }
-    return render(request, 'portfolio/meetings/detail.html', context)
-
-
-# ============================================================================
-# COURSE MANAGEMENT VIEWS
-# ============================================================================
-
-def course_register(request):
-    """Course user registration."""
-    if request.user.is_authenticated:
-        messages.info(request, "You are already logged in.")
-        return redirect('dashboard')
-    
-    if request.method == 'POST':
-        form = CourseRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            
-            # Create verification code
-            import random
-            code = ''.join(random.choices('0123456789', k=6))
-            EmailVerification.objects.create(
-                user=user,
-                code=code,
-                verification_type='email_verification'
-            )
-            
-            # In production, send email here
-            messages.success(request, 'Account created! Please check your email for verification.')
-            return redirect('course_login')
-    else:
-        form = CourseRegistrationForm()
-    
-    context = {'form': form, 'page_title': 'Course Registration'}
-    return render(request, 'courses/auth/register.html', context)
-
-
-def course_login(request):
-    """Course login."""
-    if request.user.is_authenticated:
-        messages.info(request, "You are already logged in.")
-        return redirect('dashboard')
-    
-    if request.method == 'POST':
-        form = CourseLoginForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            if user.role != 'visitor' and not user.email_verified:
-                messages.warning(request, 'Please verify your email first.')
-                return redirect('verify_email')
-            login(request, user)
-            messages.success(request, f"Welcome back, {user.get_display_name()}!")
-            return redirect('dashboard')
-        else:
-            messages.error(request, "Invalid email or password.")
-    else:
-        form = CourseLoginForm()
-    
-    context = {'form': form, 'page_title': 'Course Login'}
-    return render(request, 'courses/auth/login.html', context)
-
-
-class CourseListView(ListView):
-    """List all courses."""
-    model = Course
-    template_name = 'courses/list.html'
-    context_object_name = 'courses'
-    paginate_by = 12
-    
     def get_queryset(self):
-        school = self.kwargs.get('school')
-        queryset = Course.objects.filter(is_active=True, is_open_for_enrollment=True)
-        
-        if school:
-            queryset = queryset.filter(school=school)
-        
-        search_query = self.request.GET.get('search', '')
-        if search_query:
-            queryset = queryset.filter(
-                Q(title__icontains=search_query) |
-                Q(description__icontains=search_query) |
-                Q(course_code__icontains=search_query)
-            )
-        
-        difficulty = self.request.GET.get('difficulty', '')
-        if difficulty:
-            queryset = queryset.filter(difficulty=difficulty)
-        
-        level = self.request.GET.get('level', '')
-        if level:
-            queryset = queryset.filter(level=level)
-        
-        return queryset.order_by('course_code')
-    
+        return m.Company.objects.filter(
+            moderation_status=m.Moderation.ModerationStatus.OK
+        ).order_by("name")
+
+
+class CompanyDetailView(DetailView):
+    model = m.Company
+    template_name = "portfolio/companies/company_detail.html"
+    context_object_name = "company"
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        school = self.kwargs.get('school')
-        
-        if school:
-            context['school'] = dict(CustomUser.SCHOOL_CHOICES).get(school)
-            context['school_key'] = school
-        
-        context['difficulty_choices'] = Course.DIFFICULTY_CHOICES
-        context['level_choices'] = CustomUser.COURSE_LEVEL_CHOICES
-        context['total_courses'] = Course.objects.filter(is_active=True).count()
-        
+        context["jobs"] = self.object.jobs.filter(is_active=True)[:10]
+        context["team"] = m.EmployerProfile.objects.filter(company=self.object).select_related("user")
         return context
 
 
-class CourseDetailView(DetailView):
-    """Course detail view."""
-    model = Course
-    template_name = 'courses/detail.html'
-    context_object_name = 'course'
-    slug_field = 'slug'
-    slug_url_kwarg = 'slug'
-    
+class CreateCompanyView(LoginRequiredMixin, EmployerRequiredMixin, CreateView):
+    model = m.Company
+    form_class = f.CompanyForm
+    template_name = "portfolio/companies/company_form.html"
+    success_url = reverse_lazy("portfolio:company_list")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Company created. It may be moderated before appearing.")
+        return response
+
+
+class EditCompanyView(LoginRequiredMixin, CompanyAdminMixin, UpdateView):
+    model = m.Company
+    form_class = f.CompanyForm
+    template_name = "portfolio/companies/company_form.html"
+    success_url = reverse_lazy("portfolio:company_list")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Company updated.")
+        return super().form_valid(form)
+
+
+class CompanyVerificationView(LoginRequiredMixin, CompanyAdminMixin, CreateView):
+    model = m.CompanyVerification
+    form_class = f.CompanyVerificationForm
+    template_name = "portfolio/companies/verification_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.company = get_object_or_404(m.Company, slug=kwargs["slug"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.company = self.company
+        form.instance.submitted_by = self.request.user
+        messages.success(self.request, "Verification documents submitted.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("portfolio:company_detail", kwargs={"slug": self.company.slug})
+
+
+# =============================================================================
+# EXPERIENCE & EDUCATION
+# =============================================================================
+
+class AddExperienceView(LoginRequiredMixin, CreateView):
+    model = m.Experience
+    form_class = f.ExperienceForm
+    template_name = "portfolio/profile/experience_form.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, "Experience added.")
+        return super().form_valid(form)
+
+
+class EditExperienceView(LoginRequiredMixin, ExperienceOwnerMixin, UpdateView):
+    model = m.Experience
+    form_class = f.ExperienceForm
+    template_name = "portfolio/profile/experience_form.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Experience updated.")
+        return super().form_valid(form)
+
+
+class DeleteExperienceView(LoginRequiredMixin, ExperienceOwnerMixin, DeleteView):
+    model = m.Experience
+    template_name = "portfolio/profile/confirm_delete.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Experience deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+class AddEducationView(LoginRequiredMixin, CreateView):
+    model = m.Education
+    form_class = f.EducationForm
+    template_name = "portfolio/profile/education_form.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, "Education added.")
+        return super().form_valid(form)
+
+
+class EditEducationView(LoginRequiredMixin, EducationOwnerMixin, UpdateView):
+    model = m.Education
+    form_class = f.EducationForm
+    template_name = "portfolio/profile/education_form.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Education updated.")
+        return super().form_valid(form)
+
+
+class DeleteEducationView(LoginRequiredMixin, EducationOwnerMixin, DeleteView):
+    model = m.Education
+    template_name = "portfolio/profile/confirm_delete.html"
+    success_url = reverse_lazy("portfolio:my_profile")
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Education deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+# =============================================================================
+# SKILLS
+# =============================================================================
+
+class ManageSkillsView(LoginRequiredMixin, TemplateView):
+    template_name = "portfolio/profile/skills.html"
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        course = self.object
-        
-        if self.request.user.is_authenticated:
-            context['is_enrolled'] = Enrollment.objects.filter(
-                user=self.request.user, 
-                course=course
-            ).exists()
-        
-        context['modules'] = CourseModule.objects.filter(course=course, is_published=True).order_by('order')
-        context['reviews'] = CourseReview.objects.filter(
-            course=course, 
-            is_approved=True
-        ).order_by('-created_at')[:5]
-        
-        avg_rating = CourseReview.objects.filter(
-            course=course, 
-            is_approved=True
-        ).aggregate(Avg('rating'))['rating__avg'] or 0
-        context['average_rating'] = round(avg_rating, 1)
-        
-        # Using the new related_name 'projects_as_examples'
-        context['related_projects'] = course.example_projects.all()[:3]
-        context['related_skills'] = course.skills_taught.all()
-        context['related_blog_posts'] = course.blog_posts.filter(is_published=True)[:3]
-        
+        context["user_skills"] = self.request.user.skills.select_related("skill").all()
+        # If a bound form exists in kwargs (from POST error), use it; otherwise empty form
+        context["form"] = kwargs.get("form", f.UserSkillForm())
         return context
 
-
-@login_required
-def dashboard(request):
-    """User dashboard."""
-    user = request.user
-    
-    enrollments = Enrollment.objects.filter(user=user, status='active')
-    courses = [enrollment.course for enrollment in enrollments]
-    
-    course_progress = []
-    for course in courses:
-        try:
-            progress = UserProgress.objects.get(user=user, course=course)
-            course_progress.append({
-                'course': course,
-                'progress': progress,
-                'percentage': progress.calculate_progress()
-            })
-        except UserProgress.DoesNotExist:
-            # Create default progress if not exists
-            progress = UserProgress.objects.create(
-                user=user,
-                course=course,
-                total_chapters=CourseModule.objects.filter(course=course, is_published=True).count()
-            )
-            course_progress.append({
-                'course': course,
-                'progress': progress,
-                'percentage': 0
-            })
-    
-    # Portfolio data for visitors or all users
-    if user.role == 'visitor' or user.role == 'admin':
-        featured_projects = Project.objects.filter(is_featured=True)[:3]
-        latest_blog = BlogPost.objects.filter(is_published=True).order_by('-created_at')[:3]
-    else:
-        featured_projects = []
-        latest_blog = []
-    
-    upcoming_assignments = Assignment.objects.filter(
-        course__in=courses,
-        due_date__gt=timezone.now()
-    ).order_by('due_date')[:5]
-    
-    context = {
-        'user': user,
-        'course_progress': course_progress,
-        'enrollments': enrollments,
-        'featured_projects': featured_projects,
-        'latest_blog': latest_blog,
-        'upcoming_assignments': upcoming_assignments,
-        'page_title': 'Dashboard'
-    }
-    
-    return render(request, 'courses/dashboard.html', context)
-
-
-@login_required
-def user_courses(request):
-    """List user's enrolled courses with progress."""
-    enrollments = Enrollment.objects.filter(
-        user=request.user, 
-        status='active'
-    ).select_related('course')
-
-    # Attach progress to each enrollment (avoids template filtering)
-    for enrollment in enrollments:
-        try:
-            enrollment.progress = UserProgress.objects.get(
-                user=request.user, 
-                course=enrollment.course
-            )
-        except UserProgress.DoesNotExist:
-            enrollment.progress = None
-
-    return render(request, 'courses/user_courses.html', {
-        'enrollments': enrollments,
-        'page_title': 'My Courses'
-    })
-
-
-@login_required
-def user_progress(request):
-    """Show user's progress across all courses."""
-    progress_records = UserProgress.objects.filter(user=request.user)
-    return render(request, 'courses/user_progress.html', {
-        'progress_records': progress_records,
-        'page_title': 'My Progress'
-    })
-
-
-@login_required
-def user_certificates(request):
-    """Show user's certificates."""
-    certificates = Certificate.objects.filter(user=request.user)
-    return render(request, 'courses/user_certificates.html', {
-        'certificates': certificates,
-        'page_title': 'My Certificates'
-    })
-
-
-@login_required
-def user_profile(request):
-    """User profile page."""
-    user = request.user
-    enrollments = Enrollment.objects.filter(user=user)
-    certificates = Certificate.objects.filter(user=user)
-    
-    context = {
-        'user': user,
-        'enrollments': enrollments,
-        'certificates': certificates,
-        'page_title': 'My Profile'
-    }
-    return render(request, 'courses/profile/view.html', context)
-
-
-@login_required
-def update_profile(request):
-    """Update user profile."""
-    if request.method == 'POST':
-        form = UserProfileUpdateForm(request.POST, request.FILES, instance=request.user)
+    def post(self, request, *args, **kwargs):
+        form = f.UserSkillForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Profile updated successfully!")
-            return redirect('user_profile')
-    else:
-        form = UserProfileUpdateForm(instance=request.user)
-    
-    context = {'form': form, 'page_title': 'Update Profile'}
-    return render(request, 'courses/profile/update.html', context)
-
-
-@login_required
-def enroll_course(request, slug):
-    """Enroll user in a course."""
-    course = get_object_or_404(Course, slug=slug, is_active=True, is_open_for_enrollment=True)
-
-    if Enrollment.objects.filter(user=request.user, course=course).exists():
-        messages.info(request, f"You are already enrolled in {course.title}")
-        return redirect('course_detail', slug=slug)
-
-    if not course.is_free and course.price > 0:
-        messages.info(request, f"Payment required for {course.title}")
-        return redirect('course_detail', slug=slug)
-
-    # Create enrollment
-    enrollment = Enrollment.objects.create(
-        user=request.user,
-        course=course,
-        status='active'
-    )
-
-    # Get total published chapters
-    total_chapters = CourseModule.objects.filter(course=course, is_published=True).count()
-
-    # Create progress record
-    UserProgress.objects.create(
-        user=request.user,
-        course=course,
-        total_chapters=total_chapters,
-        current_chapter=1  # start at module 1
-    )
-
-    messages.success(request, f"Successfully enrolled in {course.title}!")
-
-    # ✅ Redirect to first module if exists, else to course detail
-    first_module = CourseModule.objects.filter(course=course, is_published=True).order_by('order').first()
-    if first_module:
-        return redirect('course_module_detail', course_slug=slug, module_id=first_module.id)
-    else:
-        messages.info(request, "This course has no content yet. Please check back later.")
-        return redirect('course_detail', slug=slug)
-
-@login_required
-def course_module_detail(request, course_slug, module_id):
-    """Course module detail view."""
-    course = get_object_or_404(Course, slug=course_slug)
-
-    # Check enrollment
-    if not Enrollment.objects.filter(user=request.user, course=course).exists():
-        messages.error(request, "You must be enrolled in this course to view its content.")
-        return redirect('course_detail', slug=course_slug)
-
-    # Try to get the requested module
-    try:
-        module = CourseModule.objects.get(course=course, id=module_id, is_published=True)
-    except CourseModule.DoesNotExist:
-        messages.warning(request, "The requested module does not exist or is not published.")
-        return redirect('course_detail', slug=course_slug)
-
-    # Get lessons for this module
-    lessons = Lesson.objects.filter(module=module, is_published=True).order_by('order')
-
-    # Get or create progress
-    progress, created = UserProgress.objects.get_or_create(
-        user=request.user,
-        course=course,
-        defaults={
-            'current_chapter': module_id,
-            'total_chapters': CourseModule.objects.filter(course=course, is_published=True).count()
-        }
-    )
-
-    if not created and progress.current_chapter != module_id:
-        progress.current_chapter = module_id
-        progress.save()
-
-    context = {
-        'course': course,
-        'module': module,
-        'lessons': lessons,
-        'progress': progress,
-        'page_title': f"{module.title} - {course.title}"
-    }
-    return render(request, 'courses/module_detail.html', context)
-@login_required
-def lesson_detail(request, course_slug, lesson_slug):
-    """Lesson detail view."""
-    course = get_object_or_404(Course, slug=course_slug)
-    lesson = get_object_or_404(Lesson, slug=lesson_slug, module__course=course)
-    
-    if not Enrollment.objects.filter(user=request.user, course=course).exists():
-        messages.error(request, "You must be enrolled in this course to view its content.")
-        return redirect('course_detail', slug=course_slug)
-    
-    lessons = Lesson.objects.filter(module=lesson.module, is_published=True).order_by('order')
-    lesson_index = list(lessons).index(lesson) if lesson in lessons else -1
-    next_lesson = lessons[lesson_index + 1] if lesson_index + 1 < len(lessons) else None
-    prev_lesson = lessons[lesson_index - 1] if lesson_index - 1 >= 0 else None
-    
-    if lesson.requires_completion:
-        progress = UserProgress.objects.get(user=request.user, course=course)
-        completed_lessons = progress.completed_lessons or []
-        if lesson.id not in completed_lessons:
-            completed_lessons.append(lesson.id)
-            progress.completed_lessons = completed_lessons
-            progress.save()
-    
-    context = {
-        'course': course,
-        'lesson': lesson,
-        'next_lesson': next_lesson,
-        'prev_lesson': prev_lesson,
-        'attached_documents': lesson.attached_documents.filter(is_published=True),
-        'page_title': lesson.title
-    }
-    return render(request, 'courses/lesson_detail.html', context)
-
-
-@login_required
-def assignment_detail(request, assignment_id):
-    """Assignment detail view."""
-    assignment = get_object_or_404(Assignment, assignment_id=assignment_id)
-    
-    if not Enrollment.objects.filter(user=request.user, course=assignment.course).exists():
-        messages.error(request, "You must be enrolled in this course to view assignments.")
-        return redirect('course_detail', slug=assignment.course.slug)
-    
-    existing_submission = Submission.objects.filter(
-        user=request.user,
-        assignment=assignment
-    ).first()
-    
-    context = {
-        'assignment': assignment,
-        'existing_submission': existing_submission,
-        'page_title': assignment.title
-    }
-    return render(request, 'courses/assignments/detail.html', context)
-
-
-@login_required
-def submit_assignment(request, assignment_id):
-    """Submit assignment."""
-    assignment = get_object_or_404(Assignment, assignment_id=assignment_id)
-    
-    if not Enrollment.objects.filter(user=request.user, course=assignment.course).exists():
-        messages.error(request, "You must be enrolled in this course to submit assignments.")
-        return redirect('course_detail', slug=assignment.course.slug)
-    
-    existing_submission = Submission.objects.filter(user=request.user, assignment=assignment).first()
-    
-    if request.method == 'POST':
-        form = AssignmentSubmissionForm(request.POST, request.FILES, instance=existing_submission)
-        if form.is_valid():
-            submission = form.save(commit=False)
-            submission.user = request.user
-            submission.assignment = assignment
-            submission.save()
-            
-            progress, _ = UserProgress.objects.get_or_create(
+            skill = form.cleaned_data["skill"]
+            level = form.cleaned_data.get("level", 3)  # default level
+            # Check if the skill already exists for this user
+            existing, created = m.UserSkill.objects.get_or_create(
                 user=request.user,
-                course=assignment.course
+                skill=skill,
+                defaults={"level": level}
             )
-            progress.assignments_submitted += 1
-            progress.save()
-            
-            messages.success(request, "Assignment submitted successfully!")
-            return redirect('assignment_detail', assignment_id=assignment_id)
-    else:
-        form = AssignmentSubmissionForm(instance=existing_submission)
-    
-    context = {
-        'assignment': assignment,
-        'form': form,
-        'existing_submission': existing_submission,
-        'page_title': f"Submit: {assignment.title}"
-    }
-    return render(request, 'courses/assignments/submit.html', context)
-
-
-@login_required
-def submission_detail(request, submission_id):
-    """Submission detail view."""
-    submission = get_object_or_404(Submission, id=submission_id)
-    
-    # Only the student who submitted, instructors of the course, and staff can view
-    if not (submission.user == request.user or 
-            request.user == submission.assignment.course.instructor or
-            request.user.is_staff):
-        raise Http404("Submission not found.")
-    
-    context = {
-        'submission': submission,
-        'page_title': f"Submission for {submission.assignment.title}"
-    }
-    return render(request, 'courses/assignments/submission_detail.html', context)
-
-
-class ResourceListView(ListView):
-    """List all resources (documents) for courses."""
-    model = Document
-    template_name = 'courses/resources/list.html'
-    context_object_name = 'resources'
-    paginate_by = 12
-    
-    def get_queryset(self):
-        queryset = Document.objects.filter(is_published=True)
-        
-        # Filter by course if provided
-        course_id = self.request.GET.get('course')
-        if course_id:
-            queryset = queryset.filter(course__course_id=course_id)
-        
-        # Filter by resource type if provided
-        resource_type = self.request.GET.get('type')
-        if resource_type:
-            queryset = queryset.filter(document_type=resource_type)
-        
-        # Access control: only show documents the user can access
-        user = self.request.user
-        if not user.is_authenticated:
-            queryset = queryset.filter(access_level='public')
-        elif not (user.is_staff or user.is_superuser):
-            # Registered users can see public, registered, and course_students for their courses
-            enrolled_courses = Enrollment.objects.filter(user=user).values_list('course', flat=True)
-            queryset = queryset.filter(
-                Q(access_level='public') |
-                Q(access_level='registered') |
-                (Q(access_level='course_students') & Q(course__in=enrolled_courses)) |
-                Q(owner=user)  # own private docs
-            ).distinct()
-        
-        return queryset.order_by('-uploaded_date')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['resource_categories'] = Document.DOCUMENT_TYPE_CHOICES
-        context['courses'] = Course.objects.filter(is_active=True)
-        return context
-
-
-@login_required
-def download_resource(request, resource_id):
-    """Alias for document_download, for course resources."""
-    # resource_id is the primary key of Document
-    document = get_object_or_404(Document, id=resource_id)
-    return document_download(request, document.slug)
-
-
-@login_required
-def verify_email(request):
-    """Email verification view."""
-    if request.method == 'POST':
-        form = EmailVerificationForm(request.POST)
-        if form.is_valid():
-            code = form.cleaned_data['code']
-            verification = EmailVerification.objects.filter(
-                user=request.user,
-                code=code,
-                is_used=False
-            ).first()
-            if verification and not verification.is_expired():
-                verification.is_used = True
-                verification.save()
-                request.user.email_verified = True
-                request.user.save()
-                messages.success(request, 'Email verified successfully!')
-                return redirect('dashboard')
+            if created:
+                messages.success(request, f"Skill '{skill.name}' added.")
             else:
-                messages.error(request, 'Invalid or expired verification code.')
-    else:
-        form = EmailVerificationForm()
-    
-    context = {'form': form, 'page_title': 'Verify Email'}
-    return render(request, 'courses/auth/verify_email.html', context)
+                messages.info(request, f"You already have the skill '{skill.name}'.")
+            return redirect("portfolio:manage_skills")
+        else:
+            # Form is invalid – re-render with errors
+            context = self.get_context_data(form=form)
+            return render(request, self.template_name, context)
+class EndorseSkillView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        user_skill = get_object_or_404(m.UserSkill, pk=pk)
+        if request.user == user_skill.user:
+            return JsonResponse({"error": "Cannot endorse yourself"}, status=400)
+        if m.Endorsement.objects.filter(endorser=request.user, user_skill=user_skill).exists():
+            return JsonResponse({"error": "Already endorsed"}, status=400)
+        m.Endorsement.objects.create(endorser=request.user, user_skill=user_skill)
+        return JsonResponse({"success": True, "new_count": user_skill.endorsement_count})
 
 
-@login_required
-def resend_verification(request):
-    """Resend verification email."""
-    import random
-    code = ''.join(random.choices('0123456789', k=6))
-    EmailVerification.objects.create(
-        user=request.user,
-        code=code,
-        verification_type='email_verification'
-    )
-    # In production: send email
-    messages.info(request, 'Verification code sent to your email.')
-    return redirect('verify_email')
+class SkillSearchAPIView(View):
+    def get(self, request):
+        query = request.GET.get("q", "")
+        if len(query) < 2:
+            return JsonResponse({"results": []})
+        skills = m.Skill.objects.filter(name__icontains=query, is_active=True)[:10]
+        results = [{"id": str(s.id), "name": s.name} for s in skills]
+        return JsonResponse({"results": results})
 
 
-@login_required
-def parent_connect(request):
-    """Parent connect to student."""
-    if request.user.role != 'parent':
-        messages.error(request, "Only parent accounts can connect to students.")
-        return redirect('dashboard')
-    
-    if request.method == 'POST':
-        form = ParentConnectionForm(request.POST, parent=request.user)
+# =============================================================================
+# JOBS
+# =============================================================================
+
+class JobListView(ListView):
+    model = m.Job
+    template_name = "portfolio/jobs/job_list.html"
+    context_object_name = "jobs"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return m.Job.objects.filter(
+            is_active=True,
+            moderation_status=m.Moderation.ModerationStatus.OK,
+        ).filter(
+            Q(application_deadline__gte=timezone.now()) | Q(application_deadline__isnull=True)
+        ).select_related("company", "employer").prefetch_related("skills_required").order_by("-created_at")
+
+
+class JobSearchView(ListView):
+    model = m.Job
+    template_name = "portfolio/jobs/job_search.html"
+    context_object_name = "jobs"
+    paginate_by = 20
+
+    def get_queryset(self):
+        form = f.JobSearchForm(self.request.GET)
+        if not form.is_valid():
+            return m.Job.objects.none()
+        cd = form.cleaned_data
+        qs = m.Job.objects.filter(
+            is_active=True,
+            moderation_status=m.Moderation.ModerationStatus.OK,
+        ).filter(
+            Q(application_deadline__gte=timezone.now()) | Q(application_deadline__isnull=True)
+        )
+
+        if cd.get("q"):
+            qs = qs.filter(
+                Q(title__icontains=cd["q"]) |
+                Q(description__icontains=cd["q"]) |
+                Q(company__name__icontains=cd["q"]) |
+                Q(employer__company_name__icontains=cd["q"])
+            )
+
+        if cd.get("location"):
+            qs = qs.filter(
+                Q(location__icontains=cd["location"]) |
+                Q(location_city__icontains=cd["location"]) |
+                Q(location_country__icontains=cd["location"])
+            )
+
+        if cd.get("employment_type"):
+            qs = qs.filter(employment_type__in=cd["employment_type"])
+
+        if cd.get("experience_level"):
+            qs = qs.filter(experience_level__in=cd["experience_level"])
+
+        if cd.get("remote_status"):
+            qs = qs.filter(remote_status__in=cd["remote_status"])
+
+        if cd.get("salary_min"):
+            qs = qs.filter(salary_max__gte=cd["salary_min"])
+
+        if cd.get("salary_max"):
+            qs = qs.filter(salary_min__lte=cd["salary_max"])
+
+        sort = cd.get("sort_by")
+        if sort == "newest":
+            qs = qs.order_by("-created_at")
+        elif sort == "oldest":
+            qs = qs.order_by("created_at")
+        elif sort == "salary_high":
+            qs = qs.order_by("-salary_max")
+        elif sort == "salary_low":
+            qs = qs.order_by("salary_min")
+        else:
+            qs = qs.order_by("-created_at")
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = f.JobSearchForm(self.request.GET or None)
+        return context
+
+
+class JobDetailView(DetailView):
+    model = m.Job
+    template_name = "portfolio/jobs/job_detail.html"
+    context_object_name = "job"
+
+    def get_object(self):
+        obj = super().get_object()
+        obj.bump_views()
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.user.is_authenticated:
+            context["has_applied"] = m.JobApplication.objects.filter(
+                user=self.request.user, job=self.object
+            ).exists()
+            context["is_saved"] = m.SavedJob.objects.filter(
+                user=self.request.user, job=self.object
+            ).exists()
+        return context
+
+
+class PostJobView(LoginRequiredMixin, EmployerRequiredMixin, CreateView):
+    model = m.Job
+    form_class = f.JobPostForm
+    template_name = "portfolio/jobs/post_job.html"
+    success_url = reverse_lazy("portfolio:job_list")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, "Job posted! It will be reviewed.")
+        return super().form_valid(form)
+
+
+class EditJobView(LoginRequiredMixin, JobOwnerMixin, UpdateView):
+    model = m.Job
+    form_class = f.JobPostForm
+    template_name = "portfolio/jobs/edit_job.html"
+    success_url = reverse_lazy("portfolio:job_list")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, "Job updated.")
+        return super().form_valid(form)
+
+
+class DeleteJobView(LoginRequiredMixin, JobOwnerMixin, DeleteView):
+    model = m.Job
+    template_name = "portfolio/jobs/confirm_delete.html"
+    success_url = reverse_lazy("portfolio:job_list")
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Job deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+class ApplyJobView(LoginRequiredMixin, JobSeekerRequiredMixin, FormView):
+    form_class = f.JobApplicationForm
+    template_name = "portfolio/jobs/apply_job.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.job = get_object_or_404(m.Job, slug=kwargs["slug"])
+        if not self.job.is_active or (self.job.application_deadline and self.job.application_deadline < timezone.now()):
+            messages.error(request, "This job is no longer accepting applications.")
+            return redirect("portfolio:job_detail", slug=self.job.slug)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        kwargs["job"] = self.job
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, "Application submitted!")
+        return redirect("portfolio:job_detail", slug=self.job.slug)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["job"] = self.job
+        return context
+
+
+class SaveJobView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        job = get_object_or_404(m.Job, slug=slug)
+        m.SavedJob.objects.get_or_create(user=request.user, job=job)
+        return JsonResponse({"success": True})
+
+
+class UnsaveJobView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        job = get_object_or_404(m.Job, slug=slug)
+        m.SavedJob.objects.filter(user=request.user, job=job).delete()
+        return JsonResponse({"success": True})
+
+
+class SavedJobsView(LoginRequiredMixin, ListView):
+    model = m.SavedJob
+    template_name = "portfolio/jobs/saved_jobs.html"
+    context_object_name = "saved_jobs"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return m.SavedJob.objects.filter(user=self.request.user).select_related("job", "job__company").order_by("-created_at")
+
+
+# =============================================================================
+# APPLICATIONS
+# =============================================================================
+
+class MyApplicationsView(LoginRequiredMixin, JobSeekerRequiredMixin, ListView):
+    model = m.JobApplication
+    template_name = "portfolio/applications/my_applications.html"
+    context_object_name = "applications"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return m.JobApplication.objects.filter(user=self.request.user).select_related("job", "job__company").order_by("-applied_at")
+
+
+class ApplicationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = m.JobApplication
+    template_name = "portfolio/applications/application_detail.html"
+    context_object_name = "application"
+
+    def test_func(self):
+        app = self.get_object()
+        return self.request.user == app.user or self.request.user == app.job.employer
+
+
+class WithdrawApplicationView(LoginRequiredMixin, ApplicationOwnerMixin, View):
+    def post(self, request, pk):
+        app = get_object_or_404(m.JobApplication, pk=pk)
+        if app.status not in [app.Status.HIRED, app.Status.REJECTED]:
+            app.update_status(m.JobApplication.Status.WITHDRAWN, request.user)
+            messages.success(request, "Application withdrawn.")
+        else:
+            messages.error(request, "Cannot withdraw application in current status.")
+        return redirect("portfolio:my_applications")
+
+
+class JobApplicationsView(LoginRequiredMixin, EmployerRequiredMixin, ListView):
+    model = m.JobApplication
+    template_name = "portfolio/applications/job_applications.html"
+    context_object_name = "applications"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        self.job = get_object_or_404(m.Job, slug=kwargs["slug"])
+        if self.job.employer != request.user and not request.user.is_staff:
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return m.JobApplication.objects.filter(job=self.job).select_related("user").order_by("-applied_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["job"] = self.job
+        return context
+
+
+class UpdateApplicationStatusView(LoginRequiredMixin, ApplicationEmployerMixin, View):
+    def post(self, request, pk):
+        app = get_object_or_404(m.JobApplication, pk=pk)
+        new_status = request.POST.get("status")
+        if new_status not in [choice[0] for choice in m.JobApplication.Status.choices]:
+            return JsonResponse({"error": "Invalid status"}, status=400)
+        app.update_status(new_status, request.user)
+        return JsonResponse({"success": True})
+
+
+# =============================================================================
+# JOB ALERTS
+# =============================================================================
+
+class JobAlertListView(LoginRequiredMixin, ListView):
+    model = m.JobAlert
+    template_name = "portfolio/alerts/job_alerts.html"
+    context_object_name = "alerts"
+
+    def get_queryset(self):
+        return m.JobAlert.objects.filter(user=self.request.user).order_by("-created_at")
+
+
+class CreateJobAlertView(LoginRequiredMixin, CreateView):
+    model = m.JobAlert
+    form_class = f.JobAlertForm
+    template_name = "portfolio/alerts/job_alert_form.html"
+    success_url = reverse_lazy("portfolio:job_alerts")
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, "Job alert created.")
+        return super().form_valid(form)
+
+
+class EditJobAlertView(LoginRequiredMixin, UpdateView):
+    model = m.JobAlert
+    form_class = f.JobAlertForm
+    template_name = "portfolio/alerts/job_alert_form.html"
+    success_url = reverse_lazy("portfolio:job_alerts")
+
+    def get_queryset(self):
+        return m.JobAlert.objects.filter(user=self.request.user)
+
+
+class DeleteJobAlertView(LoginRequiredMixin, DeleteView):
+    model = m.JobAlert
+    template_name = "portfolio/alerts/confirm_delete.html"
+    success_url = reverse_lazy("portfolio:job_alerts")
+
+    def get_queryset(self):
+        return m.JobAlert.objects.filter(user=self.request.user)
+
+
+class ToggleJobAlertView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        alert = get_object_or_404(m.JobAlert, pk=pk, user=request.user)
+        alert.is_active = not alert.is_active
+        alert.save()
+        return JsonResponse({"is_active": alert.is_active})
+
+
+# =============================================================================
+# SOCIAL FEED
+# =============================================================================
+
+class FeedView(LoginRequiredMixin, ListView):
+    model = m.Post
+    template_name = "portfolio/social/feed.html"
+    context_object_name = "posts"
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = self.request.user
+        connections = m.Connection.objects.filter(
+            Q(from_user=user, status=m.Connection.Status.ACCEPTED) |
+            Q(to_user=user, status=m.Connection.Status.ACCEPTED)
+        )
+        connected_ids = set()
+        for c in connections:
+            if c.from_user_id == user.id:
+                connected_ids.add(c.to_user_id)
+            else:
+                connected_ids.add(c.from_user_id)
+
+        following_ids = set(m.Follow.objects.filter(follower=user).values_list("following_id", flat=True))
+        visible_ids = connected_ids | following_ids | {user.id}
+
+        return m.Post.objects.filter(
+            author_id__in=visible_ids,
+            is_deleted=False,
+            moderation_status=m.Moderation.ModerationStatus.OK
+        ).select_related("author").prefetch_related(
+            Prefetch("likes", queryset=m.PostLike.objects.filter(user=user), to_attr="liked_by_user")
+        ).order_by("-created_at")
+
+
+class PostDetailView(LoginRequiredMixin, DetailView):
+    model = m.Post
+    template_name = "portfolio/social/post_detail.html"
+    context_object_name = "post"
+
+    def get_object(self):
+        obj = super().get_object()
+        if not obj.can_view(self.request.user):
+            raise PermissionDenied("You cannot view this post.")
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["comment_form"] = f.CommentForm()
+        context["liked"] = self.object.likes.filter(user=self.request.user).exists()
+        return context
+
+
+class CreatePostView(LoginRequiredMixin, CreateView):
+    model = m.Post
+    form_class = f.PostForm
+    template_name = "portfolio/social/post_form.html"
+    success_url = reverse_lazy("portfolio:feed")
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        messages.success(self.request, "Post created.")
+        return super().form_valid(form)
+
+
+class EditPostView(LoginRequiredMixin, PostAuthorMixin, UpdateView):
+    model = m.Post
+    form_class = f.PostForm
+    template_name = "portfolio/social/post_form.html"
+    success_url = reverse_lazy("portfolio:feed")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Post updated.")
+        return super().form_valid(form)
+
+
+class DeletePostView(LoginRequiredMixin, PostAuthorMixin, DeleteView):
+    model = m.Post
+    template_name = "portfolio/social/confirm_delete.html"
+    success_url = reverse_lazy("portfolio:feed")
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Post deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+class LikePostView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        post = get_object_or_404(m.Post, pk=pk)
+        try:
+            m.PostLike.like(post, request.user)
+            return JsonResponse({"success": True, "like_count": post.like_count + 1})
+        except ValidationError as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+
+class UnlikePostView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        post = get_object_or_404(m.Post, pk=pk)
+        m.PostLike.unlike(post, request.user)
+        return JsonResponse({"success": True, "like_count": max(0, post.like_count - 1)})
+
+
+class AddCommentView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        post = get_object_or_404(m.Post, pk=pk)
+        if not post.can_view(request.user):
+            return JsonResponse({"error": "Cannot comment"}, status=403)
+        form = f.CommentForm(request.POST)
         if form.is_valid():
-            connection = form.save()
-            messages.success(request, "Connection request sent to student. They need to verify.")
-            return redirect('parent_dashboard')
-    else:
-        form = ParentConnectionForm(parent=request.user)
-    
-    context = {'form': form, 'page_title': 'Connect to Student'}
-    return render(request, 'courses/parent/connect.html', context)
-
-
-@login_required
-def parent_dashboard(request):
-    """Parent dashboard."""
-    if request.user.role != 'parent':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-    
-    connections = ParentConnection.objects.filter(parent=request.user, is_verified=True)
-    students = [conn.student for conn in connections]
-    
-    pending_connections = ParentConnection.objects.filter(parent=request.user, is_verified=False)
-    
-    context = {
-        'connections': connections,
-        'students': students,
-        'pending_connections': pending_connections,
-        'page_title': 'Parent Dashboard'
-    }
-    return render(request, 'courses/parent/dashboard.html', context)
-
-
-# ============================================================================
-# API VIEWS
-# ============================================================================
-
-@login_required
-def api_user_progress(request):
-    """API endpoint for user progress."""
-    user = request.user
-    progress_data = UserProgress.objects.filter(user=user).values(
-        'course__title', 'course__course_code', 'chapters_completed',
-        'total_chapters', 'grade', 'time_spent', 'streak_days'
-    )
-    return JsonResponse({'success': True, 'progress': list(progress_data)})
-
-
-@login_required
-def api_course_stats(request):
-    """API endpoint for course statistics."""
-    user = request.user
-    if user.role == 'instructor':
-        courses = Course.objects.filter(instructor=user)
-        stats = []
-        for course in courses:
-            enrollments = Enrollment.objects.filter(course=course).count()
-            avg_grade = UserProgress.objects.filter(course=course).aggregate(Avg('grade'))['grade__avg'] or 0
-            stats.append({
-                'course': course.title,
-                'enrollments': enrollments,
-                'average_grade': round(avg_grade, 1),
-                'revenue': 0  # Placeholder
+            comment = form.save(commit=False)
+            comment.post = post
+            comment.author = request.user
+            comment.save()
+            return JsonResponse({
+                "success": True,
+                "comment": {
+                    "id": str(comment.id),
+                    "author": comment.author.display_name(),
+                    "content": comment.content,
+                    "created_at": comment.created_at.isoformat(),
+                }
             })
-    else:
-        stats = []
-    return JsonResponse({'success': True, 'stats': stats})
+        return JsonResponse({"errors": form.errors}, status=400)
 
 
-# ============================================================================
+class DeleteCommentView(LoginRequiredMixin, CommentAuthorMixin, DeleteView):
+    model = m.PostComment
+    template_name = "portfolio/social/confirm_delete.html"
+    success_url = reverse_lazy("portfolio:feed")
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Comment deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+# =============================================================================
+# NETWORK
+# =============================================================================
+
+class NetworkView(LoginRequiredMixin, TemplateView):
+    template_name = "portfolio/network/network.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context["pending_requests"] = m.Connection.objects.filter(
+            to_user=user, status=m.Connection.Status.PENDING
+        ).select_related("from_user").order_by("-created_at")[:5]
+
+        context["suggestions"] = m.CustomUser.objects.filter(
+            is_profile_public=True,
+            role=m.CustomUser.Role.JOB_SEEKER
+        ).exclude(id=user.id)[:5]
+
+        context["connection_count"] = m.Connection.objects.filter(
+            Q(from_user=user) | Q(to_user=user),
+            status=m.Connection.Status.ACCEPTED
+        ).count()
+        return context
+
+
+class ConnectionListView(LoginRequiredMixin, ListView):
+    model = m.Connection
+    template_name = "portfolio/network/connections.html"
+    context_object_name = "connections"
+    paginate_by = 20
+
+    def get_queryset(self):
+        user = self.request.user
+        return m.Connection.objects.filter(
+            Q(from_user=user) | Q(to_user=user),
+            status=m.Connection.Status.ACCEPTED
+        ).select_related("from_user", "to_user").order_by("-created_at")
+
+
+class FollowerListView(LoginRequiredMixin, ListView):
+    model = m.Follow
+    template_name = "portfolio/network/followers.html"
+    context_object_name = "followers"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return m.Follow.objects.filter(following=self.request.user).select_related("follower").order_by("-created_at")
+
+
+class FollowingListView(LoginRequiredMixin, ListView):
+    model = m.Follow
+    template_name = "portfolio/network/following.html"
+    context_object_name = "following"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return m.Follow.objects.filter(follower=self.request.user).select_related("following").order_by("-created_at")
+
+
+class SendConnectionRequestView(LoginRequiredMixin, View):
+    def post(self, request, user_id):
+        to_user = get_object_or_404(m.CustomUser, id=user_id)
+        if request.user == to_user:
+            return JsonResponse({"error": "Cannot connect with yourself"}, status=400)
+
+        existing = m.Connection.objects.filter(
+            Q(from_user=request.user, to_user=to_user) | Q(from_user=to_user, to_user=request.user)
+        ).first()
+        if existing:
+            return JsonResponse({"error": f"Connection already {existing.status}"}, status=400)
+
+        if m.Block.objects.filter(
+            Q(blocker=request.user, blocked=to_user) | Q(blocker=to_user, blocked=request.user)
+        ).exists():
+            return JsonResponse({"error": "Cannot send request due to block"}, status=400)
+
+        m.Connection.objects.create(from_user=request.user, to_user=to_user)
+        return JsonResponse({"success": True})
+
+
+class ConnectionRequestsView(LoginRequiredMixin, ListView):
+    model = m.Connection
+    template_name = "portfolio/network/connection_requests.html"
+    context_object_name = "requests"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return m.Connection.objects.filter(
+            to_user=self.request.user, status=m.Connection.Status.PENDING
+        ).select_related("from_user").order_by("-created_at")
+
+
+class AcceptConnectionView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        connection = get_object_or_404(m.Connection, pk=pk, to_user=request.user, status=m.Connection.Status.PENDING)
+        connection.accept()
+        return JsonResponse({"success": True})
+
+
+class DeclineConnectionView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        connection = get_object_or_404(m.Connection, pk=pk, to_user=request.user, status=m.Connection.Status.PENDING)
+        connection.decline()
+        return JsonResponse({"success": True})
+
+
+class FollowUserView(LoginRequiredMixin, View):
+    def post(self, request, user_id):
+        to_user = get_object_or_404(m.CustomUser, id=user_id)
+        if request.user == to_user:
+            return JsonResponse({"error": "Cannot follow yourself"}, status=400)
+        m.Follow.objects.get_or_create(follower=request.user, following=to_user)
+        return JsonResponse({"success": True})
+
+
+class UnfollowUserView(LoginRequiredMixin, View):
+    def post(self, request, user_id):
+        to_user = get_object_or_404(m.CustomUser, id=user_id)
+        m.Follow.objects.filter(follower=request.user, following=to_user).delete()
+        return JsonResponse({"success": True})
+
+
+# =============================================================================
+# RECOMMENDATIONS
+# =============================================================================
+
+class WriteRecommendationView(LoginRequiredMixin, FormView):
+    template_name = "portfolio/network/write_recommendation.html"
+    form_class = f.RecommendationForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.recommendee = get_object_or_404(m.CustomUser, id=kwargs["user_id"])
+        if not m.Connection.objects.filter(
+            Q(from_user=request.user, to_user=self.recommendee, status=m.Connection.Status.ACCEPTED) |
+            Q(from_user=self.recommendee, to_user=request.user, status=m.Connection.Status.ACCEPTED)
+        ).exists():
+            messages.error(request, "You can only recommend connected users.")
+            return redirect("portfolio:public_profile", pk=self.recommendee.id)
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.recommender = self.request.user
+        form.instance.recommendee = self.recommendee
+        form.save()
+        messages.success(self.request, "Recommendation sent.")
+        return redirect("portfolio:public_profile", pk=self.recommendee.id)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["recommendee"] = self.recommendee
+        return context
+
+
+# =============================================================================
+# MESSAGING
+# =============================================================================
+
+class ConversationListView(LoginRequiredMixin, ListView):
+    model = m.Conversation
+    template_name = "portfolio/messages/conversations.html"
+    context_object_name = "conversations"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return self.request.user.conversations.all().order_by("-last_message_at")
+
+
+class NewConversationView(LoginRequiredMixin, View):
+    def get(self, request, user_id):
+        other_user = get_object_or_404(m.CustomUser, id=user_id)
+        conv = m.Conversation.get_or_create_direct(request.user, other_user)
+        return redirect("portfolio:conversation_detail", pk=conv.id)
+
+
+class ConversationDetailView(LoginRequiredMixin, DetailView):
+    model = m.Conversation
+    template_name = "portfolio/messages/conversation_detail.html"
+    context_object_name = "conversation"
+
+    def get_object(self):
+        obj = super().get_object()
+        if not obj.can_participate(self.request.user):
+            raise PermissionDenied
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        messages_qs = self.object.messages.filter(
+            is_deleted=False,
+            moderation_status=m.Moderation.ModerationStatus.OK
+        ).select_related("sender").order_by("created_at")
+
+        for msg in messages_qs:
+            if msg.sender != self.request.user:
+                delivery = msg.deliveries.filter(user=self.request.user).first()
+                if delivery and not delivery.read_at:
+                    delivery.mark_read()
+
+        context["messages"] = messages_qs
+        context["form"] = f.DirectMessageForm()
+        return context
+
+
+class SendMessageView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        conversation = get_object_or_404(m.Conversation, pk=pk)
+        if not conversation.can_participate(request.user):
+            return JsonResponse({"error": "Cannot send message"}, status=403)
+
+        form = f.DirectMessageForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                msg = m.DirectMessage.send(
+                    conversation=conversation,
+                    sender=request.user,
+                    content=form.cleaned_data["content"],
+                    attachment=request.FILES.get("attachment")
+                )
+                return JsonResponse({
+                    "success": True,
+                    "message": {
+                        "id": str(msg.id),
+                        "content": msg.content,
+                        "sender": msg.sender.display_name(),
+                        "created_at": msg.created_at.isoformat(),
+                    }
+                })
+            except ValidationError as e:
+                return JsonResponse({"error": str(e)}, status=400)
+        return JsonResponse({"errors": form.errors}, status=400)
+
+
+# =============================================================================
+# NOTIFICATIONS
+# =============================================================================
+
+class NotificationListView(LoginRequiredMixin, ListView):
+    model = m.Notification
+    template_name = "portfolio/notifications/notifications.html"
+    context_object_name = "notifications"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return self.request.user.notifications.all().order_by("-created_at")
+
+
+class MarkNotificationReadView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        notif = get_object_or_404(m.Notification, pk=pk, recipient=request.user)
+        notif.mark_read()
+        return JsonResponse({"success": True})
+
+
+class MarkAllNotificationsReadView(LoginRequiredMixin, View):
+    def post(self, request):
+        request.user.notifications.filter(is_read=False).update(is_read=True, read_at=timezone.now())
+        return JsonResponse({"success": True})
+
+
+# =============================================================================
+# SEARCH
+# =============================================================================
+
+class GlobalSearchView(TemplateView):
+    template_name = "portfolio/search/global_search.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query = self.request.GET.get("q", "").strip()
+        context["query"] = query
+        if query:
+            context["jobs"] = m.Job.objects.filter(
+                Q(title__icontains=query) | Q(description__icontains=query),
+                is_active=True,
+                moderation_status=m.Moderation.ModerationStatus.OK
+            )[:5]
+
+            context["users"] = m.CustomUser.objects.filter(
+                Q(first_name__icontains=query) | Q(last_name__icontains=query) | Q(headline__icontains=query),
+                is_profile_public=True,
+                is_active=True
+            )[:5]
+
+            context["companies"] = m.Company.objects.filter(
+                name__icontains=query,
+                moderation_status=m.Moderation.ModerationStatus.OK
+            )[:5]
+
+            context["skills"] = m.Skill.objects.filter(name__icontains=query, is_active=True)[:5]
+        return context
+
+
+class UserSearchView(ListView):
+    model = m.CustomUser
+    template_name = "portfolio/search/user_search.html"
+    context_object_name = "users"
+    paginate_by = 20
+
+    def get_queryset(self):
+        form = f.UserSearchForm(self.request.GET)
+        if not form.is_valid():
+            return m.CustomUser.objects.none()
+        cd = form.cleaned_data
+        qs = m.CustomUser.objects.filter(is_active=True, is_profile_public=True)
+
+        if cd.get("q"):
+            qs = qs.filter(
+                Q(first_name__icontains=cd["q"]) |
+                Q(last_name__icontains=cd["q"]) |
+                Q(headline__icontains=cd["q"]) |
+                Q(profile__bio__icontains=cd["q"])
+            )
+
+        if cd.get("location"):
+            qs = qs.filter(profile__location__icontains=cd["location"])
+
+        if cd.get("role"):
+            qs = qs.filter(role=cd["role"])
+
+        if cd.get("skills"):
+            skill_names = [s.strip() for s in cd["skills"].split(",") if s.strip()]
+            if skill_names:
+                qs = qs.filter(skills__skill__name__in=skill_names).distinct()
+
+        if cd.get("open_to_work"):
+            qs = qs.filter(profile__open_to_work=True)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = f.UserSearchForm(self.request.GET or None)
+        return context
+
+
+# =============================================================================
+# REPORTS / MODERATION
+# =============================================================================
+
+class ReportListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = m.Report
+    template_name = "portfolio/moderation/reports.html"
+    context_object_name = "reports"
+    paginate_by = 20
+
+    def test_func(self):
+        return self.request.user.is_staff or self.request.user.role == m.CustomUser.Role.ADMIN
+
+    def get_queryset(self):
+        return m.Report.objects.filter(is_resolved=False).order_by("-created_at")
+
+
+class CreateReportView(LoginRequiredMixin, CreateView):
+    model = m.Report
+    form_class = f.ReportForm
+    template_name = "portfolio/moderation/create_report.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.content_type = get_object_or_404(ContentType, id=kwargs["content_type_id"])
+        self.object_id = kwargs["object_id"]
+        self.target = self.content_type.get_object_for_this_type(id=self.object_id)
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.reporter = self.request.user
+        form.instance.content_type = self.content_type
+        form.instance.object_id = self.object_id
+        form.instance.target = self.target
+        messages.success(self.request, "Report submitted. Thank you for helping keep our community safe.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("portfolio:home")
+
+
+class ResolveReportView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        return self.request.user.is_staff or self.request.user.role == m.CustomUser.Role.ADMIN
+
+    def post(self, request, pk):
+        report = get_object_or_404(m.Report, pk=pk)
+        report.resolve(request.user)
+        return JsonResponse({"success": True})
+
+
+# =============================================================================
 # ERROR HANDLERS
-# ============================================================================
+# =============================================================================
 
 def custom_404(request, exception):
-    return render(request, 'errors/404.html', status=404)
+    return render(request, "portfolio/404.html", status=404)
+
 
 def custom_500(request):
-    return render(request, 'errors/500.html', status=500)
+    return render(request, "portfolio/500.html", status=500)
 
 
 
@@ -1317,467 +1317,65 @@ def custom_500(request):
 
 
 
+from dal import autocomplete
 
 
-from django.contrib.admin.views.decorators import staff_member_required
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
+class SkillAutocomplete(autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Skill.objects.none()
+        qs = Skill.objects.filter(is_active=True)
+        if self.q:
+            qs = qs.filter(name__icontains=self.q)
+        return qs
 
-# ============================================================================
-# INSTRUCTOR DASHBOARD & COURSE MANAGEMENT
-# ============================================================================
-
-@login_required
-def instructor_dashboard(request):
-    """Instructor dashboard with stats and quick links."""
-    if request.user.role != 'instructor':
-        messages.error(request, "Access denied. Instructor privileges required.")
-        return redirect('dashboard')
-    
-    courses = Course.objects.filter(instructor=request.user)
-    total_students = Enrollment.objects.filter(course__in=courses).count()
-    total_assignments = Assignment.objects.filter(course__in=courses).count()
-    pending_submissions = Submission.objects.filter(
-        assignment__course__in=courses,
-        is_graded=False
-    ).count()
-    
-    context = {
-        'courses': courses,
-        'total_courses': courses.count(),
-        'total_students': total_students,
-        'total_assignments': total_assignments,
-        'pending_submissions': pending_submissions,
-        'recent_courses': courses.order_by('-created_at')[:5],
-        'page_title': 'Instructor Dashboard'
-    }
-    return render(request, 'courses/instructor/dashboard.html', context)
-
-
-@login_required
-def instructor_course_list(request):
-    """List all courses taught by the instructor."""
-    if request.user.role != 'instructor':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-    
-    courses = Course.objects.filter(instructor=request.user).order_by('-created_at')
-    return render(request, 'courses/instructor/course_list.html', {
-        'courses': courses,
-        'page_title': 'My Courses'
-    })
-
-
-@login_required
-def instructor_course_create(request):
-    """Create a new course."""
-    if request.user.role != 'instructor':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-    
-    if request.method == 'POST':
-        # Process form data
-        title = request.POST.get('title')
-        course_code = request.POST.get('course_code')
-        description = request.POST.get('description')
-        detailed_description = request.POST.get('detailed_description')
-        school = request.POST.get('school')
-        department = request.POST.get('department')
-        credits = request.POST.get('credits', 3)
-        level = request.POST.get('level')
-        duration = request.POST.get('duration')
-        difficulty = request.POST.get('difficulty')
-        price = request.POST.get('price', 0)
-        is_free = request.POST.get('is_free') == 'on'
-        thumbnail = request.FILES.get('thumbnail')
-        
-        # Generate course_id (you may want a more robust method)
-        import random
-        course_id = f"{course_code}-{random.randint(1000, 9999)}"
-        
-        course = Course.objects.create(
-            course_id=course_id,
-            course_code=course_code,
-            title=title,
-            description=description,
-            detailed_description=detailed_description,
-            school=school,
-            department=department,
-            instructor=request.user,
-            credits=credits,
-            level=level,
-            duration=duration,
-            difficulty=difficulty,
-            price=price,
-            is_free=is_free,
-            thumbnail=thumbnail
-        )
-        messages.success(request, f"Course '{title}' created successfully!")
-        return redirect('instructor_course_edit', slug=course.slug)
-    
-    context = {
-        'school_choices': CustomUser.SCHOOL_CHOICES,
-        'level_choices': CustomUser.COURSE_LEVEL_CHOICES,
-        'difficulty_choices': Course.DIFFICULTY_CHOICES,
-        'page_title': 'Create New Course'
-    }
-    return render(request, 'courses/instructor/course_form.html', context)
-
-
-@login_required
-def instructor_course_edit(request, slug):
-    """Edit an existing course."""
-    if request.user.role != 'instructor':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-    
-    course = get_object_or_404(Course, slug=slug, instructor=request.user)
-    
-    if request.method == 'POST':
-        course.title = request.POST.get('title')
-        course.course_code = request.POST.get('course_code')
-        course.description = request.POST.get('description')
-        course.detailed_description = request.POST.get('detailed_description')
-        course.school = request.POST.get('school')
-        course.department = request.POST.get('department')
-        course.credits = request.POST.get('credits', 3)
-        course.level = request.POST.get('level')
-        course.duration = request.POST.get('duration')
-        course.difficulty = request.POST.get('difficulty')
-        course.price = request.POST.get('price', 0)
-        course.is_free = request.POST.get('is_free') == 'on'
-        if request.FILES.get('thumbnail'):
-            course.thumbnail = request.FILES.get('thumbnail')
-        course.save()
-        
-        messages.success(request, "Course updated successfully!")
-        return redirect('instructor_course_edit', slug=course.slug)
-    
-    context = {
-        'course': course,
-        'school_choices': CustomUser.SCHOOL_CHOICES,
-        'level_choices': CustomUser.COURSE_LEVEL_CHOICES,
-        'difficulty_choices': Course.DIFFICULTY_CHOICES,
-        'page_title': f'Edit {course.title}'
-    }
-    return render(request, 'courses/instructor/course_form.html', context)
-
-
-@login_required
-def instructor_manage_modules(request, slug):
-    """Manage modules and lessons for a course."""
-    if request.user.role != 'instructor':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-    
-    course = get_object_or_404(Course, slug=slug, instructor=request.user)
-    modules = CourseModule.objects.filter(course=course).order_by('order')
-    
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        
-        if action == 'add_module':
-            title = request.POST.get('title')
-            description = request.POST.get('description')
-            order = modules.count() + 1
-            CourseModule.objects.create(
-                course=course,
-                title=title,
-                description=description,
-                order=order
-            )
-            messages.success(request, "Module added successfully.")
-        
-        elif action == 'delete_module':
-            module_id = request.POST.get('module_id')
-            CourseModule.objects.filter(id=module_id, course=course).delete()
-            # Reorder remaining modules
-            for idx, mod in enumerate(CourseModule.objects.filter(course=course).order_by('order'), start=1):
-                mod.order = idx
-                mod.save()
-            messages.success(request, "Module deleted.")
-        
-        return redirect('instructor_manage_modules', slug=slug)
-    
-    context = {
-        'course': course,
-        'modules': modules,
-        'page_title': f'Manage {course.title}'
-    }
-    return render(request, 'courses/instructor/module_manage.html', context)
-
-
-@login_required
-def instructor_lesson_create(request, module_id):
-    """Create a new lesson in a module."""
-    module = get_object_or_404(CourseModule, id=module_id)
-    if module.course.instructor != request.user:
-        messages.error(request, "Access denied.")
-        return redirect('instructor_dashboard')
-    
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        content = request.POST.get('content')
-        video_url = request.POST.get('video_url')
-        duration_minutes = request.POST.get('duration_minutes', 0)
-        order = module.lessons.count() + 1
-        
-        lesson = Lesson.objects.create(
-            module=module,
-            title=title,
-            content=content,
-            video_url=video_url,
-            duration_minutes=duration_minutes,
-            order=order,
-            slug=slugify(f"{module.course.course_code}-{title}")
-        )
-        messages.success(request, "Lesson created successfully.")
-        return redirect('instructor_manage_modules', slug=module.course.slug)
-    
-    context = {
-        'module': module,
-        'course': module.course,
-        'page_title': f'Add Lesson to {module.title}'
-    }
-    return render(request, 'courses/instructor/lesson_form.html', context)
-
-
-@login_required
-def instructor_lesson_edit(request, slug):
-    """Edit an existing lesson."""
-    lesson = get_object_or_404(Lesson, slug=slug)
-    if lesson.module.course.instructor != request.user:
-        messages.error(request, "Access denied.")
-        return redirect('instructor_dashboard')
-    
-    if request.method == 'POST':
-        lesson.title = request.POST.get('title')
-        lesson.content = request.POST.get('content')
-        lesson.video_url = request.POST.get('video_url')
-        lesson.duration_minutes = request.POST.get('duration_minutes', 0)
-        lesson.save()
-        messages.success(request, "Lesson updated successfully.")
-        return redirect('instructor_manage_modules', slug=lesson.module.course.slug)
-    
-    context = {
-        'lesson': lesson,
-        'module': lesson.module,
-        'course': lesson.module.course,
-        'page_title': f'Edit {lesson.title}'
-    }
-    return render(request, 'courses/instructor/lesson_form.html', context)
-
-
-# ============================================================================
-# ASSIGNMENT MANAGEMENT
-# ============================================================================
-
-@login_required
-def instructor_assignment_list(request, slug):
-    """List all assignments for a course."""
-    course = get_object_or_404(Course, slug=slug, instructor=request.user)
-    assignments = Assignment.objects.filter(course=course).order_by('-due_date')
-    
-    context = {
-        'course': course,
-        'assignments': assignments,
-        'page_title': f'Assignments - {course.title}'
-    }
-    return render(request, 'courses/instructor/assignment_list.html', context)
-
-
-@login_required
-def instructor_assignment_create(request):
-    """Create a new assignment."""
-    if request.user.role != 'instructor':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-    
-    if request.method == 'POST':
-        course_id = request.POST.get('course')
-        course = get_object_or_404(Course, id=course_id, instructor=request.user)
-        
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        due_date = request.POST.get('due_date')
-        max_points = request.POST.get('max_points', 100)
-        assignment_type = request.POST.get('assignment_type')
-        allows_file_upload = request.POST.get('allows_file_upload') == 'on'
-        max_file_size_mb = request.POST.get('max_file_size_mb', 10)
-        
-        # Generate assignment_id
-        import uuid
-        assignment_id = f"{course.course_code}-{uuid.uuid4().hex[:6].upper()}"
-        
-        assignment = Assignment.objects.create(
-            assignment_id=assignment_id,
-            course=course,
-            title=title,
-            description=description,
-            due_date=due_date,
-            max_points=max_points,
-            assignment_type=assignment_type,
-            created_by=request.user,
-            allows_file_upload=allows_file_upload,
-            max_file_size_mb=max_file_size_mb
-        )
-        messages.success(request, "Assignment created successfully.")
-        return redirect('instructor_assignment_list', slug=course.slug)
-    
-    courses = Course.objects.filter(instructor=request.user)
-    context = {
-        'courses': courses,
-        'assignment_types': Assignment.ASSIGNMENT_TYPES,
-        'page_title': 'Create Assignment'
-    }
-    return render(request, 'courses/instructor/assignment_form.html', context)
-
-
-@login_required
-def instructor_assignment_edit(request, assignment_id):
-    """Edit an existing assignment."""
-    assignment = get_object_or_404(Assignment, assignment_id=assignment_id)
-    if assignment.course.instructor != request.user:
-        messages.error(request, "Access denied.")
-        return redirect('instructor_dashboard')
-    
-    if request.method == 'POST':
-        assignment.title = request.POST.get('title')
-        assignment.description = request.POST.get('description')
-        assignment.due_date = request.POST.get('due_date')
-        assignment.max_points = request.POST.get('max_points', 100)
-        assignment.assignment_type = request.POST.get('assignment_type')
-        assignment.allows_file_upload = request.POST.get('allows_file_upload') == 'on'
-        assignment.max_file_size_mb = request.POST.get('max_file_size_mb', 10)
-        assignment.save()
-        messages.success(request, "Assignment updated successfully.")
-        return redirect('instructor_assignment_list', slug=assignment.course.slug)
-    
-    context = {
-        'assignment': assignment,
-        'course': assignment.course,
-        'assignment_types': Assignment.ASSIGNMENT_TYPES,
-        'page_title': f'Edit {assignment.title}'
-    }
-    return render(request, 'courses/instructor/assignment_form.html', context)
-
-
-@login_required
-def instructor_submissions_list(request, assignment_id):
-    """List all submissions for an assignment."""
-    assignment = get_object_or_404(Assignment, assignment_id=assignment_id)
-    if assignment.course.instructor != request.user:
-        messages.error(request, "Access denied.")
-        return redirect('instructor_dashboard')
-    
-    submissions = Submission.objects.filter(assignment=assignment).order_by('-submitted_at')
-    enrolled_students = Enrollment.objects.filter(course=assignment.course, status='active')
-    total_students = enrolled_students.count()
-    submitted_count = submissions.count()
-    
-    context = {
-        'assignment': assignment,
-        'course': assignment.course,
-        'submissions': submissions,
-        'total_students': total_students,
-        'submitted_count': submitted_count,
-        'page_title': f'Submissions - {assignment.title}'
-    }
-    return render(request, 'courses/instructor/submissions_list.html', context)
-
-
-@login_required
-def instructor_grade_submission(request, submission_id):
-    """Grade a specific submission."""
-    submission = get_object_or_404(Submission, id=submission_id)
-    if submission.assignment.course.instructor != request.user:
-        messages.error(request, "Access denied.")
-        return redirect('instructor_dashboard')
-    
-    if request.method == 'POST':
-        grade = request.POST.get('grade')
-        feedback = request.POST.get('feedback')
-        
-        submission.grade = grade
-        submission.feedback = feedback
-        submission.is_graded = True
-        submission.graded_at = timezone.now()
-        submission.graded_by = request.user
-        submission.save()
-        
-        messages.success(request, f"Submission graded: {grade}/{submission.assignment.max_points}")
-        return redirect('instructor_submissions_list', assignment_id=submission.assignment.assignment_id)
-    
-    context = {
-        'submission': submission,
-        'assignment': submission.assignment,
-        'student': submission.user,
-        'page_title': f'Grade {submission.user.get_display_name()}'
-    }
-    return render(request, 'courses/instructor/grade_submission.html', context)
+class CompanyAutocomplete(autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Company.objects.none()
+        qs = Company.objects.filter(moderation_status=Company.ModerationStatus.OK)
+        if self.q:
+            qs = qs.filter(name__icontains=self.q)
+        return qs
 
 
 
 
 
 
-
-
-
-
-@login_required
-def parent_student_detail(request, student_id):
-    """Show detailed progress for a specific student (parent view)."""
-    if request.user.role != 'parent':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-
-    # Verify this parent is connected to the student
-    student = get_object_or_404(CustomUser, id=student_id, role='student')
-    connection = get_object_or_404(ParentConnection, parent=request.user, student=student, is_verified=True)
-
-    enrollments = Enrollment.objects.filter(user=student).select_related('course')
-    completed_courses = enrollments.filter(completed=True).count()
-
-    # Attach progress to each enrollment
-    for enrollment in enrollments:
-        try:
-            enrollment.progress = UserProgress.objects.get(user=student, course=enrollment.course)
-        except UserProgress.DoesNotExist:
-            enrollment.progress = None
-
-    avg_grade = 0
-    graded_submissions = Submission.objects.filter(user=student, is_graded=True)
-    if graded_submissions.exists():
-        avg_grade = graded_submissions.aggregate(Avg('grade'))['grade__avg'] or 0
-
-    recent_submissions = Submission.objects.filter(user=student).order_by('-submitted_at')[:5]
-    certificates = Certificate.objects.filter(user=student)
-
-    context = {
-        'student': student,
-        'enrollments': enrollments,
-        'completed_courses': completed_courses,
-        'avg_grade': avg_grade,
-        'recent_submissions': recent_submissions,
-        'certificates': certificates,
-        'page_title': f"{student.get_display_name()} - Progress"
-    }
-    return render(request, 'parent/student_detail.html', context)
+def skill_id_by_name(request):
+    """Return the ID of a skill given its name (case‑insensitive)."""
+    name = request.GET.get('name', '')
+    try:
+        skill = Skill.objects.get(name__iexact=name, is_active=True)
+        return JsonResponse({'id': skill.id})
+    except Skill.DoesNotExist:
+        return JsonResponse({'error': 'Skill not found'}, status=404)
 
 
 
 
 
 
+# =============================================================================
+# STATIC PAGES (About, Contact, Privacy, Terms)
+# =============================================================================
 
+class AboutView(TemplateView):
+    template_name = "portfolio/about.html"
 
-@require_POST
-@login_required
-def parent_cancel_connection(request, connection_id):
-    if request.user.role != 'parent':
-        return JsonResponse({'error': 'Access denied'}, status=403)
-    connection = get_object_or_404(ParentConnection, id=connection_id, parent=request.user, is_verified=False)
-    connection.delete()
-    messages.success(request, "Connection request cancelled.")
-    return redirect('parent_dashboard')
+class ContactView(FormView):
+    template_name = "portfolio/contact.html"
+    form_class = f.ReportForm  # You can create a dedicated ContactForm later
+    success_url = reverse_lazy("portfolio:home")
+
+    def form_valid(self, form):
+        # You would typically send an email here
+        messages.success(self.request, "Thank you for contacting us!")
+        return super().form_valid(form)
+
+class PrivacyView(TemplateView):
+    template_name = "portfolio/privacy.html"
+
+class TermsView(TemplateView):
+    template_name = "portfolio/terms.html"

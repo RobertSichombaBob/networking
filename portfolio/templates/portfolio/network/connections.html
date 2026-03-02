@@ -1,0 +1,65 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}My Connections – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'portfolio:network' %}" class="btn btn-outline-secondary btn-sm mb-3">
+        <i class="fas fa-arrow-left me-1"></i>Back to Network
+    </a>
+
+    <h1 class="h3 fw-bold mb-4"><i class="fas fa-user-friends me-2 text-copper"></i>Connections</h1>
+
+    <div class="row g-4">
+        {% for conn in connections %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        {% if conn.from_user == user %}
+                            {% with other=conn.to_user %}
+                                <img src="{% if other.profile.avatar %}{{ other.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ other.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                     class="rounded-circle me-3" width="60" height="60">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 fw-bold">{{ other.display_name }}</h6>
+                                    <small class="text-muted">{{ other.headline|truncatechars:40 }}</small><br>
+                                    <small class="text-muted">Connected {{ conn.created_at|timesince }} ago</small>
+                                </div>
+                                <a href="{% url 'portfolio:public_profile' other.id %}" class="btn btn-sm btn-outline-copper ms-2">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            {% endwith %}
+                        {% else %}
+                            {% with other=conn.from_user %}
+                                <img src="{% if other.profile.avatar %}{{ other.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ other.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                     class="rounded-circle me-3" width="60" height="60">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 fw-bold">{{ other.display_name }}</h6>
+                                    <small class="text-muted">{{ other.headline|truncatechars:40 }}</small><br>
+                                    <small class="text-muted">Connected {{ conn.created_at|timesince }} ago</small>
+                                </div>
+                                <a href="{% url 'portfolio:public_profile' other.id %}" class="btn btn-sm btn-outline-copper ms-2">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            {% endwith %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="far fa-frown fa-4x text-muted mb-3"></i>
+                    <h5>No connections yet</h5>
+                    <p class="text-muted">Start connecting with people to grow your network.</p>
+                    <a href="{% url 'portfolio:network' %}" class="btn btn-copper">Find People</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        {% include "portfolio/includes/pagination.html" %}
+    {% endif %}
+</div>
+{% endblock %}

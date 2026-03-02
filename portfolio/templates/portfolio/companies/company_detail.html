@@ -1,0 +1,96 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}{{ company.name }} – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'portfolio:home' %}" class="text-copper">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'portfolio:company_list' %}" class="text-copper">Companies</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ company.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Company info sidebar -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <img src="{% if company.logo %}{{ company.logo.url }}{% else %}https://ui-avatars.com/api/?name={{ company.name|urlencode }}&background=198754&color=fff&size=150{% endif %}"
+                         class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    <h3 class="fw-bold">{{ company.name }}</h3>
+                    {% if company.is_verified %}
+                        <span class="badge bg-success mb-2"><i class="fas fa-check-circle me-1"></i>Verified</span>
+                    {% endif %}
+                    <hr>
+                    <p class="mb-2"><i class="fas fa-industry text-copper me-2"></i>{{ company.industry|default:"Industry not set" }}</p>
+                    <p class="mb-2"><i class="fas fa-users text-copper me-2"></i>{{ company.size|default:"Size not set" }}</p>
+                    {% if company.website %}
+                        <p><i class="fas fa-globe text-copper me-2"></i><a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website }}</a></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="col-lg-8">
+            <!-- About -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-copper"></i>About</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ company.description|default:"No description provided."|linebreaks }}</p>
+                </div>
+            </div>
+
+            <!-- Team -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-users me-2 text-copper"></i>Team</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for emp in team %}
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <img src="{% if emp.user.profile.avatar %}{{ emp.user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ emp.user.display_name|urlencode }}&background=198754&color=fff&size=50{% endif %}"
+                                         class="rounded-circle me-3" width="50" height="50">
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">{{ emp.user.display_name }}</h6>
+                                        <small class="text-muted">{{ emp.title|default:"Team member" }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-muted">No team members listed.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Open jobs -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-briefcase me-2 text-copper"></i>Open Jobs</h5>
+                </div>
+                <div class="card-body">
+                    {% for job in jobs %}
+                        <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 pb-2 border-bottom">
+                            <div>
+                                <h6 class="fw-bold"><a href="{% url 'portfolio:job_detail' job.slug %}" class="text-decoration-none text-dark">{{ job.title }}</a></h6>
+                                <p class="text-muted small mb-1"><i class="fas fa-map-marker-alt me-1"></i>{{ job.location }}</p>
+                            </div>
+                            <span class="badge bg-copper">{{ job.get_employment_type_display }}</span>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">No open jobs at the moment.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

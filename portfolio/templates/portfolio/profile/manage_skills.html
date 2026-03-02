@@ -1,0 +1,61 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Manage Skills – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Current Skills Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-code me-2 text-copper"></i>Your Skills</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_skills %}
+                        {% for us in user_skills %}
+                            <span class="badge bg-light border text-dark p-3 me-2 mb-2 d-inline-flex align-items-center">
+                                {{ us.skill.name }}
+                                <span class="badge bg-copper ms-2">{{ us.endorsement_count }}</span>
+                                <!-- Optional: remove skill (you may add a remove button if desired) -->
+                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">You haven't added any skills yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Add New Skill Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-plus-circle me-2 text-copper"></i>Add New Skill</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="skill_id" class="form-label fw-semibold">Select a skill</label>
+                            <select name="skill_id" id="skill_id" class="form-select" required>
+                                <option value="" selected disabled>— Choose a skill —</option>
+                                {% for skill in all_skills %}
+                                    <option value="{{ skill.id }}">{{ skill.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-copper py-2">Add Skill</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{% url 'portfolio:my_profile' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

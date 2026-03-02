@@ -1,0 +1,84 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Job Alerts – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header with create button -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <h1 class="h2 fw-bold"><i class="fas fa-bell me-2 text-copper"></i>Job Alerts</h1>
+        <a href="{% url 'portfolio:create_job_alert' %}" class="btn btn-copper">
+            <i class="fas fa-plus me-2"></i>New Alert
+        </a>
+    </div>
+
+    <!-- Alert cards -->
+    <div class="row g-4">
+        {% for alert in alerts %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title fw-bold mb-0">{{ alert.name }}</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input toggle-alert" type="checkbox" role="switch"
+                                       data-alert-id="{{ alert.id }}"
+                                       data-toggle-url="{% url 'portfolio:toggle_job_alert' alert.id %}"
+                                       {% if alert.is_active %}checked{% endif %}>
+                            </div>
+                        </div>
+
+                        <p class="card-text small text-secondary">
+                            <i class="fas fa-tag me-1"></i> Keywords: {{ alert.keywords|default:"Any" }}<br>
+                            <i class="fas fa-map-marker-alt me-1"></i> Location: {{ alert.location|default:"Any" }}<br>
+                            <i class="fas fa-briefcase me-1"></i> Type: {{ alert.get_employment_type_display|default:"Any" }}<br>
+                            <i class="fas fa-clock me-1"></i> Frequency: {{ alert.get_frequency_display }}
+                        </p>
+
+                        <div class="d-flex gap-2 mt-3">
+                            <a href="{% url 'portfolio:edit_job_alert' alert.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </a>
+                            <a href="{% url 'portfolio:delete_job_alert' alert.pk %}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                    <h5>No job alerts yet</h5>
+                    <p class="text-muted">Create alerts to get notified about jobs that match your criteria.</p>
+                    <a href="{% url 'portfolio:create_job_alert' %}" class="btn btn-copper">Create your first alert</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.toggle-alert').change(function() {
+            var cb = $(this);
+            var url = cb.data('toggle-url');
+            $.post(url, {
+                csrfmiddlewaretoken: window.CSRF_TOKEN  // token from base.html
+            }, function(data) {
+                if (!data.success) {
+                    // Revert if failed
+                    cb.prop('checked', !cb.prop('checked'));
+                    alert('Could not update alert status.');
+                }
+            }).fail(function() {
+                cb.prop('checked', !cb.prop('checked'));
+                alert('Could not update alert status.');
+            });
+        });
+    });
+</script>
+{% endblock %}

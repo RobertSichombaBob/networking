@@ -1,0 +1,95 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Find People – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'portfolio:global_search' %}" class="btn btn-outline-secondary btn-sm mb-3">
+        <i class="fas fa-arrow-left me-1"></i>Back to Search
+    </a>
+
+    <h1 class="h2 fw-bold mb-4"><i class="fas fa-users me-2 text-copper"></i>Find People</h1>
+
+    <div class="row g-4">
+        <!-- Filters sidebar -->
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">Filters</h5>
+                    <form method="get">
+                        <div class="mb-3">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="q" class="form-control" value="{{ request.GET.q|default:'' }}" placeholder="Name, headline, skills">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <input type="text" name="location" class="form-control" value="{{ request.GET.location|default:'' }}" placeholder="City, country">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select name="role" class="form-select">
+                                <option value="">All</option>
+                                <option value="job_seeker" {% if request.GET.role == 'job_seeker' %}selected{% endif %}>Job Seeker</option>
+                                <option value="employer" {% if request.GET.role == 'employer' %}selected{% endif %}>Employer</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Skills (comma separated)</label>
+                            <input type="text" name="skills" class="form-control" value="{{ request.GET.skills|default:'' }}" placeholder="e.g., python, excel">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" name="open_to_work" id="open_to_work" {% if request.GET.open_to_work %}checked{% endif %}>
+                            <label class="form-check-label" for="open_to_work">Open to work only</label>
+                        </div>
+                        <button type="submit" class="btn btn-copper w-100">Apply Filters</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results list -->
+        <div class="col-lg-9">
+            {% if users %}
+                <p class="text-secondary mb-3">{{ users.paginator.count }} result{{ users.paginator.count|pluralize }} found</p>
+                {% for u in users %}
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-body">
+                            <div class="d-flex">
+                                <img src="{% if u.profile.avatar %}{{ u.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ u.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                     class="rounded-circle me-3" width="60" height="60">
+                                <div class="flex-grow-1">
+                                    <h5 class="fw-bold mb-1">
+                                        <a href="{% url 'portfolio:public_profile' u.id %}" class="text-decoration-none text-dark">
+                                            {{ u.display_name }}
+                                        </a>
+                                    </h5>
+                                    <p class="text-muted mb-2">{{ u.headline|default:"" }}</p>
+                                    <p class="small text-secondary mb-2">
+                                        <i class="fas fa-map-marker-alt me-1 text-copper"></i> {{ u.profile.location|default:"Location not set" }}
+                                    </p>
+                                    <div>
+                                        {% for us in u.skills.all|slice:":5" %}
+                                            <span class="badge bg-light border text-dark me-1 mb-1">{{ us.skill.name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    {% include "portfolio/includes/pagination.html" %}
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-user-slash fa-4x text-muted mb-3"></i>
+                    <h5>No people found</h5>
+                    <p class="text-muted">Try adjusting your filters or search term.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

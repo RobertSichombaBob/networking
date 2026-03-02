@@ -1,0 +1,57 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}{% if object %}Edit{% else %}Create{% endif %} Job Alert – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'portfolio:home' %}" class="text-copper">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'portfolio:job_alerts' %}" class="text-copper">Job Alerts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% if object %}Edit{% else %}Create{% endif %} Alert</li>
+                </ol>
+            </nav>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-bell me-2 text-copper"></i>{% if object %}Edit{% else %}Create{% endif %} Job Alert</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-copper px-4 py-2">Save Alert</button>
+                            <a href="{% url 'portfolio:job_alerts' %}" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

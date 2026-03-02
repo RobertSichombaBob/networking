@@ -1,0 +1,200 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}My Profile – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Quick actions bar -->
+    <div class="d-flex flex-wrap gap-2 mb-4 justify-content-center justify-content-lg-start">
+        <a href="{% url 'portfolio:conversations' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-comments me-1"></i> Messages
+        </a>
+        <a href="{% url 'portfolio:notifications' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-bell me-1"></i> Notifications
+        </a>
+        <a href="{% url 'portfolio:my_applications' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-file-alt me-1"></i> My Applications
+        </a>
+        <a href="{% url 'portfolio:saved_jobs' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-bookmark me-1"></i> Saved Jobs
+        </a>
+        <a href="{% url 'portfolio:job_alerts' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-bell me-1"></i> Job Alerts
+        </a>
+        <a href="{% url 'portfolio:network' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-users me-1"></i> My Network
+        </a>
+    </div>
+
+    <!-- Profile Header -->
+    <div class="profile-header mb-5">
+        <div class="profile-cover"></div>
+        <div class="d-flex flex-wrap align-items-end gap-4">
+            <img src="{% if user.profile.avatar %}{{ user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ user.display_name|urlencode }}&background=198754&color=fff&size=120{% endif %}"
+                 class="profile-avatar shadow" alt="{{ user.display_name }}">
+            <div class="profile-info flex-grow-1">
+                <h1 class="display-5 fw-bold mb-1">{{ user.display_name }}</h1>
+                <p class="lead text-secondary mb-2">{{ user.headline|default:"Add a professional headline" }}</p>
+                <p class="text-secondary"><i class="fas fa-map-marker-alt me-1 text-copper"></i>{{ user.profile.location|default:"Location not set" }}</p>
+            </div>
+            <div class="mb-3 d-flex gap-2">
+                <a href="{% url 'portfolio:edit_profile' %}" class="btn btn-outline-copper btn-lg">
+                    <i class="fas fa-edit me-2"></i>Edit Profile
+                </a>
+                {% if user.role == 'employer' %}
+                    <a href="{% url 'portfolio:edit_employer_profile' %}" class="btn btn-outline-copper btn-lg">
+                        <i class="fas fa-building me-2"></i>Employer Settings
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column: About & Job Preferences -->
+        <div class="col-lg-4">
+            <!-- About Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-copper"></i>About</h5>
+                    <p>{{ user.profile.bio|default:"No bio yet – tell others about yourself."|linebreaks }}</p>
+                    <hr>
+                    <p class="mb-1"><i class="fas fa-globe me-2 text-copper"></i>{% if user.profile.website %}<a href="{{ user.profile.website }}" target="_blank">{{ user.profile.website }}</a>{% else %}—{% endif %}</p>
+                    <p class="mb-1"><i class="fab fa-linkedin me-2 text-copper"></i>{% if user.profile.linkedin %}<a href="{{ user.profile.linkedin }}" target="_blank">LinkedIn</a>{% else %}—{% endif %}</p>
+                    <p class="mb-1"><i class="fab fa-github me-2 text-copper"></i>{% if user.profile.github %}<a href="{{ user.profile.github }}" target="_blank">GitHub</a>{% else %}—{% endif %}</p>
+                </div>
+            </div>
+
+            <!-- Job Preferences Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-briefcase me-2 text-copper"></i>Job Preferences</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><span class="fw-semibold">Open to work:</span> 
+                            <span class="badge {% if user.profile.open_to_work %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ user.profile.open_to_work|yesno:"Yes,No" }}
+                            </span>
+                        </li>
+                        <li class="mb-2"><span class="fw-semibold">Relocation:</span> 
+                            <span class="badge {% if user.profile.open_to_relocation %}bg-info{% else %}bg-secondary{% endif %}">
+                                {{ user.profile.open_to_relocation|yesno:"Yes,No" }}
+                            </span>
+                        </li>
+                        <li class="mb-2"><span class="fw-semibold">Preferred job types:</span><br>
+                            {% if user.profile.preferred_job_types %}
+                                {% for type in user.profile.preferred_job_types %}
+                                    <span class="badge bg-copper me-1">{{ type }}</span>
+                                {% endfor %}
+                            {% else %}Not set{% endif %}
+                        </li>
+                        <li class="mb-2"><span class="fw-semibold">Preferred locations:</span><br>
+                            {% if user.profile.preferred_locations %}
+                                {% for loc in user.profile.preferred_locations %}
+                                    <span class="badge bg-copper me-1">{{ loc }}</span>
+                                {% endfor %}
+                            {% else %}Not set{% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Experience, Education, Skills -->
+        <div class="col-lg-8">
+            <!-- Experience Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-briefcase me-2 text-copper"></i>Experience</h5>
+                    <a href="{% url 'portfolio:add_experience' %}" class="btn btn-sm btn-copper">
+                        <i class="fas fa-plus me-1"></i>Add Experience
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% for exp in user.experiences.all %}
+                        <div class="d-flex justify-content-between align-items-start mb-3 pb-3 border-bottom">
+                            <div>
+                                <h6 class="fw-bold mb-1">{{ exp.title }}</h6>
+                                <p class="text-secondary mb-1">{{ exp.company }} • {{ exp.location|default:"—" }}</p>
+                                <p class="text-muted small mb-0">
+                                    <i class="far fa-calendar-alt me-1"></i>{{ exp.start_date|date:"M Y" }} – 
+                                    {% if exp.is_current %}Present{% else %}{{ exp.end_date|date:"M Y" }}{% endif %}
+                                </p>
+                                {% if exp.description %}
+                                    <p class="small mt-2">{{ exp.description|truncatewords:30 }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'portfolio:edit_experience' exp.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'portfolio:delete_experience' exp.pk %}" class="btn btn-outline-danger" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted text-center py-3">No experience added yet. <a href="{% url 'portfolio:add_experience' %}" class="text-copper">Add your first experience</a></p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Education Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-graduation-cap me-2 text-copper"></i>Education</h5>
+                    <a href="{% url 'portfolio:add_education' %}" class="btn btn-sm btn-copper">
+                        <i class="fas fa-plus me-1"></i>Add Education
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% for edu in user.education.all %}
+                        <div class="d-flex justify-content-between align-items-start mb-3 pb-3 border-bottom">
+                            <div>
+                                <h6 class="fw-bold mb-1">{{ edu.degree }}</h6>
+                                <p class="text-secondary mb-1">{{ edu.school }} • {{ edu.field_of_study|default:"—" }}</p>
+                                <p class="text-muted small mb-0">
+                                    <i class="far fa-calendar-alt me-1"></i>{{ edu.start_date|date:"Y" }} – 
+                                    {% if edu.is_current %}Present{% else %}{{ edu.end_date|date:"Y" }}{% endif %}
+                                </p>
+                                {% if edu.description %}
+                                    <p class="small mt-2">{{ edu.description|truncatewords:20 }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'portfolio:edit_education' edu.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'portfolio:delete_education' edu.pk %}" class="btn btn-outline-danger" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted text-center py-3">No education added yet. <a href="{% url 'portfolio:add_education' %}" class="text-copper">Add your first education</a></p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Skills Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-code me-2 text-copper"></i>Skills & Endorsements</h5>
+                    <a href="{% url 'portfolio:manage_skills' %}" class="btn btn-sm btn-copper">
+                        <i class="fas fa-cog me-1"></i>Manage Skills
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% for us in user.skills.all %}
+                        <span class="badge bg-light border text-dark p-2 me-2 mb-2 skill-badge">
+                            {{ us.skill.name }} 
+                            <span class="badge bg-copper ms-1">{{ us.endorsement_count }}</span>
+                        </span>
+                    {% empty %}
+                        <p class="text-muted text-center py-3">No skills added. <a href="{% url 'portfolio:manage_skills' %}" class="text-copper">Add your first skill</a></p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

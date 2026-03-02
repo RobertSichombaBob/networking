@@ -1,0 +1,84 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Reports – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="h2 fw-bold mb-4"><i class="fas fa-flag me-2 text-copper"></i>Reports</h1>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Reporter</th>
+                            <th>Target</th>
+                            <th>Reason</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr id="report-{{ report.id }}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{% if report.reporter.profile.avatar %}{{ report.reporter.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ report.reporter.display_name|urlencode }}&background=198754&color=fff&size=40{% endif %}"
+                                         class="rounded-circle me-2" width="40" height="40">
+                                    <span>{{ report.reporter.display_name }}</span>
+                                </div>
+                            </td>
+                            <td>{{ report.target|default:"—" }}</td>
+                            <td>{{ report.reason }}</td>
+                            <td>{{ report.created_at|timesince }} ago</td>
+                            <td>
+                                <button class="btn btn-sm btn-success resolve-report"
+                                        data-resolve-url="{% url 'portfolio:resolve_report' report.id %}">
+                                    <i class="fas fa-check me-1"></i>Resolve
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="fas fa-flag fa-3x mb-3"></i>
+                                <p>No unresolved reports.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.resolve-report').click(function() {
+            var btn = $(this);
+            var url = btn.data('resolve-url');
+            $.post(url, {
+                csrfmiddlewaretoken: window.CSRF_TOKEN
+            }, function(data) {
+                if (data.success) {
+                    $('#report-' + btn.closest('tr').data('report-id')).fadeOut(300, function() {
+                        $(this).remove();
+                        // If no reports left, show empty message
+                        if ($('tbody tr').length === 0) {
+                            location.reload(); // quick refresh to show empty state
+                        }
+                    });
+                } else {
+                    alert('Could not resolve report.');
+                }
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not resolve report.');
+            });
+        });
+    });
+</script>
+{% endblock %}

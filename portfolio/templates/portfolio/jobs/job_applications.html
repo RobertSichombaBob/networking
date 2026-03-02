@@ -1,0 +1,95 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Applications for {{ job.title }} – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 fw-bold"><i class="fas fa-users me-2 text-copper"></i>Applications for “{{ job.title }}”</h1>
+        <a href="{% url 'portfolio:job_detail' job.slug %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Back to Job
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Applicant</th>
+                            <th>Applied</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in applications %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{% if app.user.profile.avatar %}{{ app.user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ app.user.display_name|urlencode }}&background=198754&color=fff&size=40{% endif %}"
+                                         class="rounded-circle me-2" width="40" height="40">
+                                    <div>
+                                        <strong>{{ app.user.display_name }}</strong><br>
+                                        <small class="text-muted">{{ app.user.headline|truncatechars:30 }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ app.applied_at|date:"M d, Y" }}</td>
+                            <td>
+                                <span class="badge {% if app.status == 'applied' %}bg-secondary{% elif app.status == 'under_review' %}bg-info{% elif app.status == 'interviewing' %}bg-primary{% elif app.status == 'offered' %}bg-success{% elif app.status == 'rejected' %}bg-danger{% elif app.status == 'hired' %}bg-dark{% elif app.status == 'withdrawn' %}bg-warning{% endif %}">
+                                    {{ app.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm status-select" data-app-id="{{ app.id }}" data-update-url="{% url 'portfolio:update_application_status' app.id %}">
+                                    <option value="">Change status</option>
+                                    <option value="under_review">Under Review</option>
+                                    <option value="interviewing">Interviewing</option>
+                                    <option value="offered">Offered</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="hired">Hired</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">No applications yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        {% include "portfolio/includes/pagination.html" %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.status-select').change(function() {
+            var select = $(this);
+            var url = select.data('update-url');
+            var status = select.val();
+            if (!status) return;
+
+            $.post(url, {status: status}, function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating status.');
+                }
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not update status.');
+            });
+        });
+    });
+</script>
+{% endblock %}

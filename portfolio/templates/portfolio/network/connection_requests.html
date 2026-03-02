@@ -1,0 +1,72 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Connection Requests – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'portfolio:network' %}" class="btn btn-outline-secondary btn-sm mb-3">
+        <i class="fas fa-arrow-left me-1"></i>Back to Network
+    </a>
+
+    <h1 class="h3 fw-bold mb-4"><i class="fas fa-user-clock me-2 text-copper"></i>Connection Requests</h1>
+
+    <div class="card border-0 shadow-sm">
+        <div class="list-group list-group-flush">
+            {% for req in requests %}
+                <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center py-3">
+                    <div class="d-flex align-items-center">
+                        <img src="{% if req.from_user.profile.avatar %}{{ req.from_user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ req.from_user.display_name|urlencode }}&background=198754&color=fff&size=50{% endif %}"
+                             class="rounded-circle me-3" width="50" height="50">
+                        <div>
+                            <h6 class="mb-0 fw-bold">{{ req.from_user.display_name }}</h6>
+                            <small class="text-muted">{{ req.from_user.headline|default:"" }}</small><br>
+                            <small class="text-muted">Requested {{ req.created_at|timesince }} ago</small>
+                        </div>
+                    </div>
+                    <div class="mt-2 mt-sm-0">
+                        <button class="btn btn-sm btn-success accept-request me-1"
+                                data-accept-url="{% url 'portfolio:accept_connection' req.id %}">
+                            <i class="fas fa-check me-1"></i>Accept
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger decline-request"
+                                data-decline-url="{% url 'portfolio:decline_connection' req.id %}">
+                            <i class="fas fa-times me-1"></i>Decline
+                        </button>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="text-center py-5">
+                    <i class="far fa-user-clock fa-4x text-muted mb-3"></i>
+                    <h5>No pending requests</h5>
+                    <p class="text-muted">When someone sends you a connection request, it will appear here.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.accept-request').click(function() {
+            var btn = $(this);
+            var url = btn.data('accept-url');
+            $.post(url, {}, function() {
+                location.reload();
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not accept request.');
+            });
+        });
+        $('.decline-request').click(function() {
+            var btn = $(this);
+            var url = btn.data('decline-url');
+            $.post(url, {}, function() {
+                location.reload();
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not decline request.');
+            });
+        });
+    });
+</script>
+{% endblock %}

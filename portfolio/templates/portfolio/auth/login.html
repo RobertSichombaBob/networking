@@ -1,0 +1,53 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Login – Deriv.Ed{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-copper text-white text-center py-4">
+                    <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Welcome Back</h4>
+                </div>
+                <div class="card-body p-4 p-lg-5">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.errors %}
+                            <div class="alert alert-danger">Invalid email or password.</div>
+                        {% endif %}
+
+                        <!-- Email (note: field name must be 'username' for default auth) -->
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label fw-semibold">Email address</label>
+                            <input type="email" name="username" id="id_email" class="form-control" placeholder="your.email@example.com" required autofocus>
+                        </div>
+
+                        <!-- Password with toggle -->
+                        <div class="mb-3 position-relative">
+                            <label for="id_password" class="form-label fw-semibold">Password</label>
+                            <input type="password" name="password" id="id_password" class="form-control" required>
+                            <i class="fas fa-eye password-toggle" onclick="togglePassword('id_password')"></i>
+                        </div>
+
+                        <!-- Remember me & Forgot password -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                                <label class="form-check-label" for="remember">Remember me</label>
+                            </div>
+                            <a href="{% url 'portfolio:password_reset' %}" class="text-copper small">Forgot password?</a>
+                        </div>
+
+                        <button type="submit" class="btn btn-copper w-100 py-2 fw-semibold">Log in</button>
+                    </form>
+
+                    <hr class="my-4">
+                    <p class="text-center mb-0">
+                        Don't have an account? <a href="{% url 'portfolio:signup' %}" class="text-copper fw-semibold">Sign up</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

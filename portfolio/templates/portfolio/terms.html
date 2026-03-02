@@ -1,0 +1,63 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Terms of Service – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'portfolio:home' %}" class="text-copper">Home</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Terms of Service</li>
+                </ol>
+            </nav>
+            <h1 class="display-5 fw-bold mb-4"><i class="fas fa-file-contract me-2 text-copper"></i>Terms of Service</h1>
+            <p class="text-secondary">Effective: March 2026</p>
+            <hr class="my-4">
+
+            <h5 class="fw-bold mt-4">1. Acceptance of Terms</h5>
+            <p>By accessing or using the Deriv.Ed platform ("Service"), you agree to be bound by these Terms of Service. If you do not agree, you may not use the Service.</p>
+
+            <h5 class="fw-bold mt-4">2. Eligibility</h5>
+            <p>You must be at least 18 years old to use the Service. By using the Service, you represent and warrant that you have the right, authority, and capacity to enter into these Terms.</p>
+
+            <h5 class="fw-bold mt-4">3. Account Registration</h5>
+            <p>You may need to create an account to access certain features. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to notify us immediately of any unauthorised use.</p>
+
+            <h5 class="fw-bold mt-4">4. User Conduct</h5>
+            <p>You agree not to use the Service to:</p>
+            <ul>
+                <li>Violate any applicable laws or regulations</li>
+                <li>Infringe the rights of others</li>
+                <li>Post false, misleading, or defamatory content</li>
+                <li>Harass, abuse, or harm another person</li>
+                <li>Impersonate any person or entity</li>
+                <li>Upload or transmit viruses or other malicious code</li>
+                <li>Interfere with the operation of the Service</li>
+            </ul>
+
+            <h5 class="fw-bold mt-4">5. Content Ownership</h5>
+            <p>You retain ownership of any content you post on the Service. By posting content, you grant us a non‑exclusive, royalty‑free, worldwide licence to use, reproduce, modify, and display that content solely for the purpose of operating and improving the Service.</p>
+
+            <h5 class="fw-bold mt-4">6. Termination</h5>
+            <p>We may suspend or terminate your account at any time, with or without cause, with or without notice. Upon termination, your right to use the Service will immediately cease.</p>
+
+            <h5 class="fw-bold mt-4">7. Disclaimer of Warranties</h5>
+            <p>The Service is provided "as is" and "as available" without warranties of any kind, either express or implied. We do not guarantee that the Service will be uninterrupted, secure, or error‑free.</p>
+
+            <h5 class="fw-bold mt-4">8. Limitation of Liability</h5>
+            <p>To the fullest extent permitted by law, in no event shall Deriv.Ed be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or related to your use of the Service.</p>
+
+            <h5 class="fw-bold mt-4">9. Changes to Terms</h5>
+            <p>We reserve the right to modify these Terms at any time. If we make material changes, we will notify you by email or through the Service. Your continued use after such notice constitutes acceptance of the revised Terms.</p>
+
+            <h5 class="fw-bold mt-4">10. Governing Law</h5>
+            <p>These Terms shall be governed by the laws of Zambia, without regard to its conflict of law provisions.</p>
+
+            <h5 class="fw-bold mt-4">11. Contact Information</h5>
+            <p>For any questions about these Terms, please contact us at <a href="mailto:legal@derived.com" class="text-copper">legal@derived.com</a>.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}My Network – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- LEFT SIDEBAR -->
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Manage my network</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="{% url 'portfolio:connections' %}" class="text-decoration-none text-dark">Connections</a>
+                            <span class="badge bg-copper rounded-pill">{{ connection_count|default:"0" }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="{% url 'portfolio:followers' %}" class="text-decoration-none text-dark">Followers</a>
+                            <span class="badge bg-copper rounded-pill">{{ followers_count|default:"0" }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="{% url 'portfolio:following' %}" class="text-decoration-none text-dark">Following</a>
+                            <span class="badge bg-copper rounded-pill">{{ following_count|default:"0" }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="#" class="text-decoration-none text-dark">Groups</a>
+                            <span class="badge bg-copper rounded-pill">{{ groups_count|default:"12" }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="#" class="text-decoration-none text-dark">Events</a>
+                            <span class="badge bg-copper rounded-pill">{{ events_count|default:"6" }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="#" class="text-decoration-none text-dark">Pages</a>
+                            <span class="badge bg-copper rounded-pill">{{ pages_count|default:"435" }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between">
+                            <a href="#" class="text-decoration-none text-dark">Newsletters</a>
+                            <span class="badge bg-copper rounded-pill">{{ newsletters_count|default:"93" }}</span>
+                        </li>
+                    </ul>
+                    <hr>
+                    <a href="{% url 'portfolio:connection_requests' %}" class="btn btn-outline-secondary btn-sm w-100">Manage invitations</a>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Grow</h6>
+                    <a href="#" class="btn btn-outline-copper btn-sm w-100 mb-2">Find people you may know</a>
+                    <a href="#" class="btn btn-outline-copper btn-sm w-100">Import contacts</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="col-lg-6">
+            <!-- Pending invitations -->
+            {% if pending_requests %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold">Invitations <span class="badge bg-copper ms-2">{{ pending_requests|length }}</span></h6>
+                        <a href="{% url 'portfolio:connection_requests' %}" class="small text-copper">Show all</a>
+                    </div>
+                    <div class="card-body">
+                        {% for req in pending_requests|slice:":3" %}
+                            <div class="d-flex align-items-start mb-3 pb-2 border-bottom">
+                                <img src="{% if req.from_user.profile.avatar %}{{ req.from_user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ req.from_user.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                     class="rounded-circle me-3" width="60" height="60">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 fw-bold">{{ req.from_user.display_name }}</h6>
+                                    <small class="text-muted d-block mb-2">{{ req.from_user.headline|truncatechars:60 }}</small>
+                                    <div>
+                                        <button class="btn btn-sm btn-success me-1 accept-request"
+                                                data-accept-url="{% url 'portfolio:accept_connection' req.id %}">
+                                            <i class="fas fa-check me-1"></i>Accept
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger decline-request"
+                                                data-decline-url="{% url 'portfolio:decline_connection' req.id %}">
+                                            <i class="fas fa-times me-1"></i>Decline
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- People you may know (general) -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-users me-2 text-copper"></i>People you may know</h6>
+                    <a href="#" class="small text-copper">See all</a>
+                </div>
+                <div class="card-body">
+                    {% for suggestion in suggestions %}
+                        <div class="d-flex align-items-start mb-3 pb-2 border-bottom">
+                            <img src="{% if suggestion.profile.avatar %}{{ suggestion.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ suggestion.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                 class="rounded-circle me-3" width="60" height="60">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">{{ suggestion.display_name }}</h6>
+                                <small class="text-muted d-block mb-2">{{ suggestion.headline|truncatechars:80 }}</small>
+                                {% if suggestion.mutual_connections %}
+                                    <small class="text-muted d-block mb-2">{{ suggestion.mutual_connections }} mutual connection{{ suggestion.mutual_connections|pluralize }}</small>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-copper connect-btn"
+                                        data-connect-url="{% url 'portfolio:send_connection_request' suggestion.id %}">
+                                    <i class="fas fa-user-plus me-1"></i>Connect
+                                </button>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">No suggestions at this time.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- People you may know from Copperbelt University (example) -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-graduation-cap me-2 text-copper"></i>People you may know from Copperbelt University</h6>
+                    <a href="#" class="small text-copper">Show all</a>
+                </div>
+                <div class="card-body">
+                    {% for alum in alumni_suggestions %}
+                        <div class="d-flex align-items-start mb-3 pb-2 border-bottom">
+                            <img src="{% if alum.profile.avatar %}{{ alum.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ alum.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                 class="rounded-circle me-3" width="60" height="60">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">{{ alum.display_name }}</h6>
+                                <small class="text-muted d-block mb-2">{{ alum.headline|truncatechars:80 }}</small>
+                                {% if alum.mutual_connections %}
+                                    <small class="text-muted d-block mb-2">{{ alum.mutual_connections }} mutual connection{{ alum.mutual_connections|pluralize }}</small>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-copper connect-btn"
+                                        data-connect-url="{% url 'portfolio:send_connection_request' alum.id %}">
+                                    <i class="fas fa-user-plus me-1"></i>Connect
+                                </button>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">No suggestions from Copperbelt University.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR -->
+        <div class="col-lg-3">
+            <!-- Puzzles / Games -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3"><i class="fas fa-puzzle-piece me-2 text-copper"></i>Today's puzzles</h6>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>Zip #350</span>
+                            <small class="text-muted">6 connections played</small>
+                        </div>
+                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>Mini Sudoku #203</span>
+                            <small class="text-muted">2 connections played</small>
+                        </div>
+                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>Tango #511</span>
+                            <small class="text-muted">2 connections played</small>
+                        </div>
+                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>Queens #671</span>
+                            <small class="text-muted">2 connections played</small>
+                        </div>
+                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>Crossclimb #671</span>
+                            <small class="text-muted">Monday, Mar 2</small>
+                        </div>
+                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>Pinpoint #671</span>
+                            <small class="text-muted">1 connection played</small>
+                        </div>
+                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer links -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-3 small">
+                        <a href="#" class="text-muted">About</a>
+                        <a href="#" class="text-muted">Accessibility</a>
+                        <a href="#" class="text-muted">Help Center</a>
+                        <a href="#" class="text-muted">Privacy & Terms</a>
+                        <a href="#" class="text-muted">Ad Choices</a>
+                        <a href="#" class="text-muted">Advertising</a>
+                        <a href="#" class="text-muted">Business Services</a>
+                        <a href="#" class="text-muted">Get the LinkedIn app</a>
+                    </div>
+                    <hr>
+                    <p class="small text-muted mb-0">Deriv.Ed Corporation © 2026</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.accept-request').click(function() {
+            var btn = $(this);
+            var url = btn.data('accept-url');
+            $.post(url, {}, function() {
+                location.reload();
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not accept request.');
+            });
+        });
+        $('.decline-request').click(function() {
+            var btn = $(this);
+            var url = btn.data('decline-url');
+            $.post(url, {}, function() {
+                location.reload();
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not decline request.');
+            });
+        });
+        $('.connect-btn').click(function() {
+            var btn = $(this);
+            var url = btn.data('connect-url');
+            $.post(url, {}, function(data) {
+                btn.prop('disabled', true).text('Request Sent');
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON?.error || 'Could not send request.');
+            });
+        });
+    });
+</script>
+{% endblock %}

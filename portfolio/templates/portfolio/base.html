@@ -1,0 +1,255 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Deriv.Ed – Africa's #1 Job Platform{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Deriv.Ed connects talented professionals with top employers across Africa. Find jobs, grow your network, and build your career.{% endblock %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'portfolio/images/favicon.ico' %}">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts: Poppins + Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'portfolio/css/style.css' %}">
+
+    <!-- CSRF token for AJAX (global variable) -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script>
+        window.CSRF_TOKEN = "{{ csrf_token }}";
+    </script>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-light">
+
+    <!-- ========== MAIN NAVBAR ========== -->
+    <nav class="navbar navbar-expand-lg fixed-top" style="background: linear-gradient(135deg, #198754 0%, #146c43 100%);">
+        <div class="container">
+            <!-- Logo -->
+            <a class="navbar-brand fw-bold text-white" href="{% url 'portfolio:home' %}">
+                <i class="fas fa-leaf me-2" style="color: #B87333;"></i>Deriv<span style="color: #B87333;">.</span>Ed
+            </a>
+
+            <!-- Desktop search form (visible on lg and up) -->
+            <form class="search-form-desktop d-none d-lg-flex mx-auto flex-grow-1 mx-3" role="search" action="{% url 'portfolio:global_search' %}" method="get">
+                <div class="input-group w-100">
+                    <input class="form-control search-input" type="search" placeholder="Search jobs, people, companies..." name="q" aria-label="Search">
+                    <button class="btn search-btn" type="submit"><i class="fas fa-search"></i></button>
+                </div>
+            </form>
+
+            <!-- Toggler button (mobile) -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" 
+                    aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation"
+                    style="border-color: rgba(255,255,255,0.3); background-color: rgba(255,255,255,0.1);">
+                <span class="navbar-toggler-icon" style="background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e&quot;);"></span>
+            </button>
+
+            <!-- Collapsible part (nav links + mobile search) -->
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <!-- Mobile search form (visible only on collapsed) -->
+                <form class="search-form-mobile d-lg-none mt-2 mb-2" role="search" action="{% url 'portfolio:global_search' %}" method="get">
+                    <div class="input-group">
+                        <input class="form-control search-input" type="search" placeholder="Search jobs, people, companies..." name="q" aria-label="Search">
+                        <button class="btn search-btn" type="submit"><i class="fas fa-search"></i></button>
+                    </div>
+                </form>
+
+                <!-- Main navigation links -->
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link text-white {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'portfolio:home' %}">
+                            <i class="fas fa-home me-1"></i>Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white {% if request.resolver_match.url_name == 'job_list' %}active{% endif %}" href="{% url 'portfolio:job_list' %}">
+                            <i class="fas fa-briefcase me-1"></i>Jobs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white {% if request.resolver_match.url_name == 'feed' %}active{% endif %}" href="{% url 'portfolio:feed' %}">
+                            <i class="fas fa-stream me-1"></i>Feed
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white {% if request.resolver_match.url_name == 'network' %}active{% endif %}" href="{% url 'portfolio:network' %}">
+                            <i class="fas fa-users me-1"></i>Network
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white {% if request.resolver_match.url_name == 'conversations' %}active{% endif %}" href="{% url 'portfolio:conversations' %}">
+                            <i class="fas fa-comments me-1"></i>Messages
+                        </a>
+                    </li>
+
+                    <!-- Profile dropdown (authenticated) -->
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="{% if user.profile.avatar %}{{ user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ user.display_name|urlencode }}&background=B87333&color=fff&size=36{% endif %}"
+                                 alt="avatar" class="rounded-circle me-1" width="30" height="30">
+                            <span class="d-none d-lg-inline">{{ user.display_name|truncatechars:12 }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'portfolio:my_profile' %}"><i class="fas fa-user-circle me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:notifications' %}"><i class="fas fa-bell me-2"></i>Notifications</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:saved_jobs' %}"><i class="fas fa-bookmark me-2"></i>Saved Jobs</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:job_alerts' %}"><i class="fas fa-bell me-2"></i>Job Alerts</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'portfolio:logout' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt me-2"></i>Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'portfolio:login' %}"><i class="fas fa-sign-in-alt me-1"></i>Login</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'portfolio:signup' %}"><i class="fas fa-user-plus me-1"></i>Sign Up</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== SECONDARY QUICK‑ACTION BAR (visible when logged in) ========== -->
+    {% if user.is_authenticated %}
+    <div class="bg-white border-bottom shadow-sm py-2">
+        <div class="container">
+            <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-lg-start">
+                <a href="{% url 'portfolio:home' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'home' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a href="{% url 'portfolio:feed' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'feed' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-stream me-1"></i>Feed
+                </a>
+                <a href="{% url 'portfolio:job_list' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'job_list' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-briefcase me-1"></i>Jobs
+                </a>
+                <a href="{% url 'portfolio:network' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'network' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-users me-1"></i>Network
+                </a>
+                <a href="{% url 'portfolio:conversations' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'conversations' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-comments me-1"></i>Messages
+                </a>
+                <a href="{% url 'portfolio:notifications' %}" class="btn btn-sm position-relative {% if request.resolver_match.url_name == 'notifications' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-bell me-1"></i>Notifications
+                    {% if unread_notifications_count %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-copper">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{% url 'portfolio:my_applications' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'my_applications' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-file-alt me-1"></i>Applications
+                </a>
+                <a href="{% url 'portfolio:saved_jobs' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'saved_jobs' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-bookmark me-1"></i>Saved
+                </a>
+                <a href="{% url 'portfolio:job_alerts' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'job_alerts' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-bell me-1"></i>Alerts
+                </a>
+                <a href="{% url 'portfolio:my_profile' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'my_profile' %}btn-copper{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-user me-1"></i>Profile
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ========== MESSAGES ========== -->
+    {% if messages %}
+    <div class="container mt-3 pt-2">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="flex-shrink-0" style="margin-top: 76px;">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ========== BACK TO TOP BUTTON ========== -->
+    <button id="backToTopBtn" class="back-to-top" aria-label="Back to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="bg-dark text-white-50 pt-5 pb-3 mt-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <h5 class="text-white mb-3"><i class="fas fa-leaf me-2" style="color: #B87333;"></i>Deriv.Ed</h5>
+                    <p class="small">Africa's most innovative job platform – connecting talent with opportunity across the continent.</p>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-white-50 hover-copper"><i class="fab fa-linkedin-in fa-lg"></i></a>
+                        <a href="#" class="text-white-50 hover-copper"><i class="fab fa-twitter fa-lg"></i></a>
+                        <a href="#" class="text-white-50 hover-copper"><i class="fab fa-facebook-f fa-lg"></i></a>
+                        <a href="#" class="text-white-50 hover-copper"><i class="fab fa-instagram fa-lg"></i></a>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="text-white">Quick Links</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'portfolio:home' %}" class="text-white-50 text-decoration-none small">Home</a></li>
+                        <li><a href="{% url 'portfolio:job_list' %}" class="text-white-50 text-decoration-none small">Jobs</a></li>
+                        <li><a href="{% url 'portfolio:company_list' %}" class="text-white-50 text-decoration-none small">Companies</a></li>
+                        <li><a href="{% url 'portfolio:feed' %}" class="text-white-50 text-decoration-none small">Feed</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="text-white">Resources</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'portfolio:about' %}" class="text-white-50 text-decoration-none small">About Us</a></li>
+                        <li><a href="{% url 'portfolio:contact' %}" class="text-white-50 text-decoration-none small">Contact</a></li>
+                        <li><a href="#" class="text-white-50 text-decoration-none small">Blog</a></li>
+                        <li><a href="#" class="text-white-50 text-decoration-none small">Help Center</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="text-white">Legal</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'portfolio:privacy' %}" class="text-white-50 text-decoration-none small">Privacy</a></li>
+                        <li><a href="{% url 'portfolio:terms' %}" class="text-white-50 text-decoration-none small">Terms</a></li>
+                        <li><a href="#" class="text-white-50 text-decoration-none small">Cookies</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="text-white">Mobile App</h6>
+                    <p class="small">Coming soon to iOS & Android</p>
+                    <i class="fab fa-apple fa-2x me-2 text-white-50"></i>
+                    <i class="fab fa-google-play fa-2x text-white-50"></i>
+                </div>
+            </div>
+            <hr class="border-secondary mt-4">
+            <div class="row">
+                <div class="col text-center small">
+                    &copy; {% now "Y" %} Deriv.Ed – Empowering Africa's workforce. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ========== SCRIPTS ========== -->
+    <!-- Bootstrap JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery (for AJAX) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{% static 'portfolio/js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

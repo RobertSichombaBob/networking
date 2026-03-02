@@ -1,0 +1,123 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Search – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="h2 fw-bold mb-4"><i class="fas fa-search me-2 text-copper"></i>Search</h1>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <form method="get" action="{% url 'portfolio:global_search' %}" class="mb-5">
+                <div class="input-group input-group-lg">
+                    <input type="text" name="q" class="form-control form-control-lg border-copper" 
+                           placeholder="Search jobs, people, companies..." value="{{ query|default:'' }}">
+                    <button class="btn btn-copper" type="submit">
+                        <i class="fas fa-search me-2"></i>Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if query %}
+        <div class="row g-4">
+            <!-- Jobs column -->
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-briefcase me-2 text-copper"></i>Jobs</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if jobs %}
+                            {% for job in jobs %}
+                                <div class="mb-3 pb-2 border-bottom">
+                                    <a href="{% url 'portfolio:job_detail' job.slug %}" class="fw-semibold text-decoration-none text-dark">
+                                        {{ job.title }}
+                                    </a>
+                                    <small class="d-block text-muted">
+                                        {{ job.company.name|default:job.employer.display_name }} · {{ job.location }}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                            {% if jobs|length >= 5 %}
+                                <a href="{% url 'portfolio:job_list' %}?q={{ query }}" class="text-copper small">
+                                    View all job results <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">No jobs found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- People column -->
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-users me-2 text-copper"></i>People</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if users %}
+                            {% for person in users %}
+                                <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                                    <img src="{% if person.profile.avatar %}{{ person.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ person.display_name|urlencode }}&background=198754&color=fff&size=40{% endif %}"
+                                         class="rounded-circle me-2" width="40" height="40">
+                                    <div class="flex-grow-1">
+                                        <a href="{% url 'portfolio:public_profile' person.id %}" class="fw-semibold text-decoration-none text-dark">
+                                            {{ person.display_name }}
+                                        </a>
+                                        <small class="d-block text-muted">{{ person.headline|truncatewords:10 }}</small>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            {% if users|length >= 5 %}
+                                <a href="{% url 'portfolio:user_search' %}?q={{ query }}" class="text-copper small">
+                                    View all people results <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">No people found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Companies column -->
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-building me-2 text-copper"></i>Companies</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if companies %}
+                            {% for company in companies %}
+                                <div class="mb-3 pb-2 border-bottom">
+                                    <a href="{% url 'portfolio:company_detail' company.slug %}" class="fw-semibold text-decoration-none text-dark">
+                                        {{ company.name }}
+                                    </a>
+                                    <small class="d-block text-muted">{{ company.industry|default:"—" }}</small>
+                                </div>
+                            {% endfor %}
+                            {% if companies|length >= 5 %}
+                                <a href="{% url 'portfolio:company_list' %}?q={{ query }}" class="text-copper small">
+                                    View all company results <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">No companies found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-4x text-muted mb-3"></i>
+            <h5>Start searching</h5>
+            <p class="text-muted">Enter a keyword to find jobs, people, or companies.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

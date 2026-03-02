@@ -1,0 +1,57 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Companies – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header with create button (if user has permission) -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 fw-bold"><i class="fas fa-building me-2 text-copper"></i>Companies</h1>
+        {% if user.is_authenticated and user.role == 'employer' %}
+            <a href="{% url 'portfolio:create_company' %}" class="btn btn-copper">
+                <i class="fas fa-plus me-2"></i>Add Company
+            </a>
+        {% endif %}
+    </div>
+
+    <div class="row g-4">
+        {% for company in companies %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{% if company.logo %}{{ company.logo.url }}{% else %}https://ui-avatars.com/api/?name={{ company.name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                 class="rounded-circle me-3" width="60" height="60">
+                            <div>
+                                <h5 class="card-title fw-bold mb-0">{{ company.name }}</h5>
+                                {% if company.is_verified %}
+                                    <span class="badge bg-success small"><i class="fas fa-check-circle me-1"></i>Verified</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="card-text text-secondary">{{ company.industry|default:"—" }}</p>
+                        <p class="card-text"><small class="text-muted">{{ company.size|default:"Size unknown" }}</small></p>
+                        <a href="{% url 'portfolio:company_detail' company.slug %}" class="btn btn-outline-copper btn-sm">View Company</a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-building fa-4x text-muted mb-3"></i>
+                    <h5>No companies yet</h5>
+                    <p class="text-muted">Companies hiring on Deriv.Ed will appear here.</p>
+                    {% if user.is_authenticated and user.role == 'employer' %}
+                        <a href="{% url 'portfolio:create_company' %}" class="btn btn-copper">Add your company</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        {% include "portfolio/includes/pagination.html" %}
+    {% endif %}
+</div>
+{% endblock %}

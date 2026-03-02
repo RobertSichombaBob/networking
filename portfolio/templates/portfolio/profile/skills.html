@@ -1,0 +1,122 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Manage Skills – Deriv.Ed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Popular Skills Suggestions -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-fire me-2 text-copper"></i>Popular Skills</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Click any skill to quickly add it with a default proficiency (level 3).</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Python">Python</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="JavaScript">JavaScript</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Java">Java</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="SQL">SQL</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Excel">Excel</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Data Analysis">Data Analysis</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Machine Learning">Machine Learning</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Project Management">Project Management</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Communication">Communication</button>
+                        <button class="btn btn-outline-copper btn-sm quick-add" data-skill="Leadership">Leadership</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Skills Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-code me-2 text-copper"></i>Your Skills</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_skills %}
+                        {% for us in user_skills %}
+                            <span class="badge bg-light border text-dark p-3 me-2 mb-2 d-inline-flex align-items-center">
+                                {{ us.skill.name }}
+                                <span class="badge bg-copper ms-2">{{ us.endorsement_count }}</span>
+                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">You haven't added any skills yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Add New Skill Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-plus-circle me-2 text-copper"></i>Add New Skill</h5>
+                </div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <form method="post" id="skill-form">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-copper py-2">Add Skill</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{% url 'portfolio:my_profile' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Quick-add buttons: find option by text, select it, set default level, and submit
+        $('.quick-add').click(function() {
+            var skillName = $(this).data('skill');
+            var $select = $('#id_skill');  // the skill dropdown (ModelChoiceField)
+            var $level = $('#id_level');    // the level range input
+
+            // Find the option whose displayed text matches the skill name (case‑sensitive, trimmed)
+            var $option = $select.find('option').filter(function() {
+                return $(this).text().trim() === skillName;
+            }).first();
+
+            if ($option.length) {
+                $select.val($option.val());
+                // Set default level to 3 if the field is empty
+                if (!$level.val()) {
+                    $level.val(3);
+                }
+                // Submit the form
+                $('#skill-form').submit();
+            } else {
+                alert('Skill "' + skillName + '" not found in the list. Please select it manually.');
+            }
+        });
+    });
+</script>
+{% endblock %}

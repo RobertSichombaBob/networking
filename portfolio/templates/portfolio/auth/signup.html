@@ -1,0 +1,101 @@
+{% extends "portfolio/base.html" %}
+{% load static %}
+{% block title %}Sign Up – Deriv.Ed{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-copper text-white text-center py-4">
+                    <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Create Your Account</h4>
+                </div>
+                <div class="card-body p-4 p-lg-5">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Email -->
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">Email address</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- First name -->
+                        <div class="mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label fw-semibold">First name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Last name -->
+                        <div class="mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label fw-semibold">Last name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Role -->
+                        <div class="mb-3">
+                            <label for="{{ form.role.id_for_label }}" class="form-label fw-semibold">I am a</label>
+                            {{ form.role }}
+                            {% if form.role.errors %}
+                                <div class="text-danger small mt-1">{{ form.role.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Password1 with toggle -->
+                        <div class="mb-3 position-relative">
+                            <label for="{{ form.password1.id_for_label }}" class="form-label fw-semibold">Password</label>
+                            {{ form.password1 }}
+                            <i class="fas fa-eye password-toggle" onclick="togglePassword('{{ form.password1.id_for_label }}')"></i>
+                            {% if form.password1.errors %}
+                                <div class="text-danger small mt-1">{{ form.password1.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">Your password must be at least 8 characters and cannot be entirely numeric.</div>
+                        </div>
+
+                        <!-- Password2 with toggle -->
+                        <div class="mb-3 position-relative">
+                            <label for="{{ form.password2.id_for_label }}" class="form-label fw-semibold">Confirm password</label>
+                            {{ form.password2 }}
+                            <i class="fas fa-eye password-toggle" onclick="togglePassword('{{ form.password2.id_for_label }}')"></i>
+                            {% if form.password2.errors %}
+                                <div class="text-danger small mt-1">{{ form.password2.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Terms -->
+                        <div class="mb-4 form-check">
+                            <input type="checkbox" class="form-check-input" id="terms" required>
+                            <label class="form-check-label" for="terms">
+                                I agree to the <a href="#" class="text-copper">Terms of Service</a> and <a href="#" class="text-copper">Privacy Policy</a>.
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-copper w-100 py-2 fw-semibold">Sign Up</button>
+                    </form>
+
+                    <hr class="my-4">
+                    <p class="text-center mb-0">
+                        Already have an account? <a href="{% url 'portfolio:login' %}" class="text-copper fw-semibold">Log in</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

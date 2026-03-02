@@ -1,0 +1,204 @@
+:root {
+    --green: #198754;
+    --copper: #B87333;
+    --green-dark: #146c43;
+    --copper-dark: #a55a2a;
+    --light-bg: #f8f9fa;
+    --text-dark: #34495e;
+    --text-light: #f8f8f8;
+    --shadow: 0 8px 20px rgba(0,0,0,0.08);
+    --shadow-hover: 0 12px 30px rgba(0,0,0,0.15);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-dark);
+    background-color: var(--light-bg);
+    padding-top: 76px;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: var(--green-dark);
+}
+
+/* Navbar */
+.navbar {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 0.8rem 0;
+}
+.navbar .nav-link {
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+    border-radius: 0.375rem;
+}
+.navbar .nav-link:hover {
+    background-color: rgba(255,255,255,0.2);
+    color: var(--copper) !important;
+}
+.navbar .nav-link.active {
+    background-color: rgba(255,255,255,0.15);
+    color: var(--copper) !important;
+}
+
+/* Buttons */
+.btn-copper {
+    background-color: var(--copper);
+    border-color: var(--copper);
+    color: white;
+    transition: all 0.2s;
+}
+.btn-copper:hover {
+    background-color: var(--copper-dark);
+    border-color: var(--copper-dark);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+.btn-outline-copper {
+    border: 2px solid var(--copper);
+    color: var(--copper);
+    background: transparent;
+}
+.btn-outline-copper:hover {
+    background-color: var(--copper);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+/* Cards */
+.card {
+    border: none;
+    border-radius: 1rem;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover) !important;
+}
+.post-card {
+    transition: all 0.2s;
+}
+.like-btn.active i {
+    color: var(--copper);
+    font-weight: 900;
+}
+.text-copper {
+    color: var(--copper) !important;
+}
+.bg-copper {
+    background-color: var(--copper) !important;
+}
+
+/* Profile */
+.profile-cover {
+    height: 200px;
+    background: linear-gradient(135deg, var(--green), var(--copper));
+    border-radius: 1rem 1rem 0 0;
+    position: relative;
+}
+.profile-avatar {
+    position: absolute;
+    bottom: -50px;
+    left: 30px;
+    border: 4px solid white;
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+}
+.profile-info {
+    margin-top: 70px;
+    padding-left: 30px;
+}
+
+/* Forms */
+.form-control:focus {
+    border-color: var(--copper);
+    box-shadow: 0 0 0 3px rgba(184,115,51,0.25);
+}
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--copper);
+    cursor: pointer;
+}
+.password-toggle:hover {
+    color: var(--copper-dark);
+}
+.auth-card {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.95);
+}
+
+/* Footer */
+footer a {
+    transition: color 0.2s;
+}
+footer a:hover {
+    color: var(--copper) !important;
+}
+
+/* Back to top */
+.back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 50px;
+    height: 50px;
+    background: var(--copper);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all 0.2s;
+    z-index: 99;
+}
+.back-to-top:hover {
+    background: var(--copper-dark);
+    transform: scale(1.1);
+}
+.back-to-top.show {
+    display: flex;
+}
+
+/* Animations */
+[data-animate] {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+[data-animate].animate {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        bottom: -40px;
+        left: 20px;
+    }
+    .profile-info {
+        margin-top: 50px;
+        padding-left: 20px;
+    }
+    .back-to-top {
+        bottom: 1rem;
+        right: 1rem;
+        width: 40px;
+        height: 40px;
+    }
+}
