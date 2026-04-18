@@ -319,7 +319,11 @@ class EditProfileView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy("portfolio:my_profile")
 
     def get_object(self):
-        return self.request.user.profile
+        profile, created = m.UserProfile.objects.get_or_create(user=self.request.user)
+        if created:
+            # Optional: log creation
+            print(f"Created missing profile for user {self.request.user.email}")
+        return profile
 
     def form_valid(self, form):
         messages.success(self.request, "Profile updated.")
@@ -333,11 +337,8 @@ class EditEmployerProfileView(LoginRequiredMixin, EmployerRequiredMixin, UpdateV
     success_url = reverse_lazy("portfolio:my_profile")
 
     def get_object(self):
-        return self.request.user.employer_profile
-
-    def form_valid(self, form):
-        messages.success(self.request, "Employer profile updated.")
-        return super().form_valid(form)
+        profile, created = m.EmployerProfile.objects.get_or_create(user=self.request.user)
+        return profile
 
 
 # =============================================================================
