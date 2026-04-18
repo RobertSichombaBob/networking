@@ -1,11 +1,14 @@
-# myportfolio/urls.py
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from portfolio.views import AdminDashboardView   # import your custom dashboard view
 
 urlpatterns = [
-    # Django admin
+    # Custom admin dashboard (superuser only) – must come BEFORE the default admin
+    path('admin/dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
+
+    # Default Django admin
     path('admin/', admin.site.urls),
 
     # All portfolio app URLs (home, jobs, profiles, messaging, etc.)

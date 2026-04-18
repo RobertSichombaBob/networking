@@ -142,6 +142,14 @@ path('api/like/<uuid:post_id>/', views.htmx_like_post, name='htmx_like_post'),
 
 
 
+path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin_dashboard'),
+
+
+
+
+
+
+
 
 
 

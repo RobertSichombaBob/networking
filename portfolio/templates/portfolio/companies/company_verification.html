@@ -1,6 +1,6 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Verify {{ company.name }} – Deriv.Ed{% endblock %}
+{% block title %}Verify {{ company.name }} – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -12,24 +12,34 @@
                     <li class="breadcrumb-item"><a href="{% url 'portfolio:home' %}" class="text-copper">Home</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'portfolio:company_list' %}" class="text-copper">Companies</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'portfolio:company_detail' company.slug %}" class="text-copper">{{ company.name }}</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Verification</li>
+                    <li class="breadcrumb-item active">Verification</li>
                 </ol>
             </nav>
 
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-transparent">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold"><i class="fas fa-check-circle me-2 text-copper"></i>Verify Company: {{ company.name }}</h5>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-sm btn-outline-copper">
+                        <i class="fas fa-crown me-1"></i>Admin Dashboard
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="card-body p-4">
+                    {% if user.is_superuser %}
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-crown me-2"></i> As superuser, you can verify this company instantly in the admin panel. 
+                            <a href="{% url 'admin:portfolio_company_change' company.id %}" target="_blank">Click here to verify now</a>.
+                        </div>
+                    {% endif %}
+
                     <p class="text-secondary">Submit official documents to verify your company. This helps build trust with potential employees.</p>
                     <form method="post" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
 
                         {% if form.non_field_errors %}
                             <div class="alert alert-danger">
-                                {% for error in form.non_field_errors %}
-                                    {{ error }}
-                                {% endfor %}
+                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
                             </div>
                         {% endif %}
 
@@ -37,12 +47,8 @@
                             <div class="mb-3">
                                 <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
                                 {{ field }}
-                                {% if field.help_text %}
-                                    <div class="form-text">{{ field.help_text }}</div>
-                                {% endif %}
-                                {% if field.errors %}
-                                    <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
-                                {% endif %}
+                                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                                {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
                             </div>
                         {% endfor %}
 

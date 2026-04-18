@@ -1,6 +1,6 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Application – Deriv.Ed{% endblock %}
+{% block title %}Application – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -8,7 +8,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'portfolio:home' %}" class="text-copper">Home</a></li>
             <li class="breadcrumb-item"><a href="{% url 'portfolio:my_applications' %}" class="text-copper">My Applications</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Application Details</li>
+            <li class="breadcrumb-item active">Application Details</li>
         </ol>
     </nav>
 
@@ -19,20 +19,34 @@
                     <h5 class="mb-0 fw-bold">
                         Application for <a href="{% url 'portfolio:job_detail' application.job.slug %}" class="text-copper">{{ application.job.title }}</a>
                     </h5>
-                    <span class="badge 
-                        {% if application.status == 'applied' %}bg-secondary
-                        {% elif application.status == 'under_review' %}bg-info
-                        {% elif application.status == 'interviewing' %}bg-primary
-                        {% elif application.status == 'offered' %}bg-success
-                        {% elif application.status == 'hired' %}bg-dark
-                        {% elif application.status == 'rejected' %}bg-danger
-                        {% elif application.status == 'withdrawn' %}bg-warning
-                        {% else %}bg-secondary{% endif %} 
-                        p-2">
-                        {{ application.get_status_display }}
-                    </span>
+                    <div>
+                        <span class="badge 
+                            {% if application.status == 'applied' %}bg-secondary
+                            {% elif application.status == 'under_review' %}bg-info
+                            {% elif application.status == 'interviewing' %}bg-primary
+                            {% elif application.status == 'offered' %}bg-success
+                            {% elif application.status == 'hired' %}bg-dark
+                            {% elif application.status == 'rejected' %}bg-danger
+                            {% elif application.status == 'withdrawn' %}bg-warning
+                            {% else %}bg-secondary{% endif %} 
+                            p-2">
+                            {{ application.get_status_display }}
+                        </span>
+                        {% if user.is_superuser %}
+                        <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-sm btn-outline-copper ms-2">
+                            <i class="fas fa-crown me-1"></i>Admin Dashboard
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="card-body p-4">
+                    <!-- Superuser notice -->
+                    {% if user.is_superuser %}
+                    <div class="alert alert-info py-2 mb-4">
+                        <i class="fas fa-crown me-1"></i> As superuser, you are viewing this application (you have full access).
+                    </div>
+                    {% endif %}
+
                     <div class="row mb-4">
                         <div class="col-sm-6">
                             <p class="mb-1"><strong>Applied:</strong></p>
@@ -64,6 +78,18 @@
                         {% endif %}
                     </div>
 
+                    <!-- Employer notes – visible to employer OR superuser -->
+                    {% if user == application.job.employer or user.is_superuser %}
+                        {% if application.employer_notes %}
+                            <hr>
+                            <h6 class="fw-bold mb-3">Employer Notes</h6>
+                            <div class="bg-light p-3 rounded">
+                                {{ application.employer_notes|linebreaks }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <!-- Withdraw button – only for the applicant and if not finalised -->
                     {% if user == application.user and application.status != 'withdrawn' and application.status != 'hired' and application.status != 'rejected' %}
                         <hr>
                         <form method="post" action="{% url 'portfolio:withdraw_application' application.id %}" onsubmit="return confirm('Are you sure you want to withdraw this application?');">
@@ -72,14 +98,6 @@
                                 <i class="fas fa-times-circle me-2"></i>Withdraw Application
                             </button>
                         </form>
-                    {% endif %}
-
-                    {% if user == application.job.employer and application.employer_notes %}
-                        <hr>
-                        <h6 class="fw-bold mb-3">Employer Notes</h6>
-                        <div class="bg-light p-3 rounded">
-                            {{ application.employer_notes|linebreaks }}
-                        </div>
                     {% endif %}
                 </div>
                 <div class="card-footer bg-transparent">

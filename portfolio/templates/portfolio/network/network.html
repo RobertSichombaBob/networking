@@ -1,6 +1,6 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}My Network – Deriv.Ed{% endblock %}
+{% block title %}My Network – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -9,7 +9,14 @@
         <div class="col-lg-3">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
-                    <h6 class="fw-bold mb-3">Manage my network</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Manage my network</h6>
+                        {% if user.is_superuser %}
+                        <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-sm btn-outline-copper">
+                            <i class="fas fa-crown me-1"></i>Admin
+                        </a>
+                        {% endif %}
+                    </div>
                     <ul class="list-unstyled">
                         <li class="mb-2 d-flex justify-content-between">
                             <a href="{% url 'portfolio:connections' %}" class="text-decoration-none text-dark">Connections</a>
@@ -23,22 +30,6 @@
                             <a href="{% url 'portfolio:following' %}" class="text-decoration-none text-dark">Following</a>
                             <span class="badge bg-copper rounded-pill">{{ following_count|default:"0" }}</span>
                         </li>
-                        <li class="mb-2 d-flex justify-content-between">
-                            <a href="#" class="text-decoration-none text-dark">Groups</a>
-                            <span class="badge bg-copper rounded-pill">{{ groups_count|default:"12" }}</span>
-                        </li>
-                        <li class="mb-2 d-flex justify-content-between">
-                            <a href="#" class="text-decoration-none text-dark">Events</a>
-                            <span class="badge bg-copper rounded-pill">{{ events_count|default:"6" }}</span>
-                        </li>
-                        <li class="mb-2 d-flex justify-content-between">
-                            <a href="#" class="text-decoration-none text-dark">Pages</a>
-                            <span class="badge bg-copper rounded-pill">{{ pages_count|default:"435" }}</span>
-                        </li>
-                        <li class="mb-2 d-flex justify-content-between">
-                            <a href="#" class="text-decoration-none text-dark">Newsletters</a>
-                            <span class="badge bg-copper rounded-pill">{{ newsletters_count|default:"93" }}</span>
-                        </li>
                     </ul>
                     <hr>
                     <a href="{% url 'portfolio:connection_requests' %}" class="btn btn-outline-secondary btn-sm w-100">Manage invitations</a>
@@ -46,7 +37,7 @@
             </div>
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="fw-bold mb-3">Grow</h6>
+                    <h6 class="fw-bold mb-3">Grow your network</h6>
                     <a href="#" class="btn btn-outline-copper btn-sm w-100 mb-2">Find people you may know</a>
                     <a href="#" class="btn btn-outline-copper btn-sm w-100">Import contacts</a>
                 </div>
@@ -77,7 +68,7 @@
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger decline-request"
                                                 data-decline-url="{% url 'portfolio:decline_connection' req.id %}">
-                                            <i class="fas fa-times me-1"></i>Decline
+                                            <i class="fasfa-times me-1"></i>Decline
                                         </button>
                                     </div>
                                 </div>
@@ -116,102 +107,57 @@
                 </div>
             </div>
 
-            <!-- People you may know from Copperbelt University (example) -->
+            <!-- Alumni suggestions (example) – optional, can be removed if not needed -->
+            {% if alumni_suggestions %}
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold"><i class="fas fa-graduation-cap me-2 text-copper"></i>People you may know from Copperbelt University</h6>
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-graduation-cap me-2 text-copper"></i>Alumni from your school</h6>
                     <a href="#" class="small text-copper">Show all</a>
                 </div>
                 <div class="card-body">
-                    {% for alum in alumni_suggestions %}
+                    {% for alum in alumni_suggestions|slice:":3" %}
                         <div class="d-flex align-items-start mb-3 pb-2 border-bottom">
                             <img src="{% if alum.profile.avatar %}{{ alum.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ alum.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
                                  class="rounded-circle me-3" width="60" height="60">
                             <div class="flex-grow-1">
                                 <h6 class="mb-0 fw-bold">{{ alum.display_name }}</h6>
                                 <small class="text-muted d-block mb-2">{{ alum.headline|truncatechars:80 }}</small>
-                                {% if alum.mutual_connections %}
-                                    <small class="text-muted d-block mb-2">{{ alum.mutual_connections }} mutual connection{{ alum.mutual_connections|pluralize }}</small>
-                                {% endif %}
                                 <button class="btn btn-sm btn-outline-copper connect-btn"
                                         data-connect-url="{% url 'portfolio:send_connection_request' alum.id %}">
                                     <i class="fas fa-user-plus me-1"></i>Connect
                                 </button>
                             </div>
                         </div>
-                    {% empty %}
-                        <p class="text-muted">No suggestions from Copperbelt University.</p>
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
         </div>
 
-        <!-- RIGHT SIDEBAR -->
+        <!-- RIGHT SIDEBAR (Professional links only) -->
         <div class="col-lg-3">
-            <!-- Puzzles / Games -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
-                    <h6 class="fw-bold mb-3"><i class="fas fa-puzzle-piece me-2 text-copper"></i>Today's puzzles</h6>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Zip #350</span>
-                            <small class="text-muted">6 connections played</small>
-                        </div>
-                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
-                    </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Mini Sudoku #203</span>
-                            <small class="text-muted">2 connections played</small>
-                        </div>
-                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
-                    </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Tango #511</span>
-                            <small class="text-muted">2 connections played</small>
-                        </div>
-                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
-                    </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Queens #671</span>
-                            <small class="text-muted">2 connections played</small>
-                        </div>
-                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
-                    </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Crossclimb #671</span>
-                            <small class="text-muted">Monday, Mar 2</small>
-                        </div>
-                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
-                    </div>
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Pinpoint #671</span>
-                            <small class="text-muted">1 connection played</small>
-                        </div>
-                        <a href="#" class="btn btn-outline-copper btn-sm w-100">Solve</a>
-                    </div>
+                    <h6 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-copper"></i>Resources</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2"><a href="{% url 'portfolio:about' %}" class="text-muted text-decoration-none">About Network</a></li>
+                        <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Help Center</a></li>
+                        <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Privacy & Terms</a></li>
+                        <li class="mb-2"><a href="#" class="text-muted text-decoration-none">Advertising</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Business Services</a></li>
+                    </ul>
                 </div>
             </div>
-
-            <!-- Footer links -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <div class="d-flex flex-wrap gap-3 small">
-                        <a href="#" class="text-muted">About</a>
-                        <a href="#" class="text-muted">Accessibility</a>
-                        <a href="#" class="text-muted">Help Center</a>
-                        <a href="#" class="text-muted">Privacy & Terms</a>
-                        <a href="#" class="text-muted">Ad Choices</a>
-                        <a href="#" class="text-muted">Advertising</a>
-                        <a href="#" class="text-muted">Business Services</a>
-                        <a href="#" class="text-muted">Get the LinkedIn app</a>
+                    <h6 class="fw-bold mb-3"><i class="fas fa-download me-2 text-copper"></i>Get the app</h6>
+                    <p class="small text-muted">Coming soon to iOS and Android</p>
+                    <div class="d-flex gap-2">
+                        <i class="fab fa-apple fa-2x text-muted"></i>
+                        <i class="fab fa-google-play fa-2x text-muted"></i>
                     </div>
                     <hr>
-                    <p class="small text-muted mb-0">Deriv.Ed Corporation © 2026</p>
+                    <p class="small text-muted mb-0">© {% now "Y" %} Network Corporation</p>
                 </div>
             </div>
         </div>

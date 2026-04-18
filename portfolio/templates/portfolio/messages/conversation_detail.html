@@ -1,36 +1,73 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Conversation – Deriv.Ed{% endblock %}
+{% block title %}Chat – Network{% endblock %}
+
+{% block extra_css %}
+<style>
+    .message-bubble {
+        max-width: 70%;
+        word-wrap: break-word;
+        border-radius: 1rem;
+    }
+    .message-bubble.sent {
+        background-color: #198754;
+        color: white;
+        border-bottom-right-radius: 0.25rem;
+    }
+    .message-bubble.received {
+        background-color: #e9ecef;
+        color: #212529;
+        border-bottom-left-radius: 0.25rem;
+    }
+    #message-box {
+        scroll-behavior: smooth;
+    }
+    .typing-indicator {
+        padding: 0.5rem 1rem;
+        background-color: #f8f9fa;
+        border-radius: 2rem;
+        display: inline-block;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <!-- Conversation header -->
-            <div class="d-flex align-items-center mb-3">
-                <a href="{% url 'portfolio:conversations' %}" class="btn btn-outline-secondary btn-sm me-3">
-                    <i class="fas fa-arrow-left me-1"></i>Back
+            <!-- Conversation header with back button and superuser dashboard -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <a href="{% url 'portfolio:conversations' %}" class="btn btn-outline-secondary btn-sm me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back
+                    </a>
+                    <span class="fw-bold">
+                        {% for participant in conversation.participants.all %}
+                            {% if participant != user %}
+                                {{ participant.display_name }}
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                </div>
+                {% if user.is_superuser %}
+                <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper btn-sm">
+                    <i class="fas fa-crown me-1"></i>Admin Dashboard
                 </a>
-                <h5 class="mb-0 fw-bold">
-                    {% for participant in conversation.participants.all %}
-                        {% if participant != user %}
-                            {{ participant.display_name }}
-                        {% endif %}
-                    {% endfor %}
-                </h5>
+                {% endif %}
             </div>
 
             <!-- Message box -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-0">
-                    <div id="message-box" class="p-3" style="height: 400px; overflow-y: scroll;">
+                    <div id="message-box" class="p-3" style="height: 450px; overflow-y: auto;">
                         {% for msg in messages %}
-                            <div class="d-flex mb-3 {% if msg.sender == user %}justify-content-end{% endif %}">
+                            <div class="d-flex mb-3 {% if msg.sender == user %}justify-content-end{% endif %}" id="msg-{{ msg.id }}">
                                 {% if msg.sender != user %}
-                                    <img src="{% if msg.sender.profile.avatar %}{{ msg.sender.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ msg.sender.display_name|urlencode }}&background=198754&color=fff&size=40{% endif %}"
-                                         class="rounded-circle me-2" width="40" height="40">
+                                    <img src="{% if msg.sender.profile.avatar %}{{ msg.sender.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ msg.sender.display_name|urlencode }}&background=198754&color=fff&size=36{% endif %}"
+                                         class="rounded-circle me-2" width="36" height="36">
                                 {% endif %}
-                                <div class="message-bubble {% if msg.sender == user %}bg-copper text-white{% else %}bg-light{% endif %} p-3 rounded" style="max-width: 70%;">
+                                <div class="message-bubble {% if msg.sender == user %}sent{% else %}received{% endif %} p-3">
                                     <small>{{ msg.content|linebreaksbr }}</small>
                                     <br>
                                     <small class="{% if msg.sender == user %}text-white-50{% else %}text-muted{% endif %}">
@@ -40,14 +77,19 @@
                             </div>
                         {% endfor %}
                     </div>
+                    <div id="typing-indicator" class="px-3 pb-2" style="display: none;">
+                        <div class="typing-indicator">
+                            <i class="fas fa-ellipsis-h"></i> Typing...
+                        </div>
+                    </div>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <form id="message-form" data-send-url="{% url 'portfolio:send_message' conversation.id %}">
+                    <form id="message-form">
                         {% csrf_token %}
                         <div class="input-group">
-                            <input type="text" class="form-control" placeholder="Type a message..." name="content" autocomplete="off">
-                            <button class="btn btn-copper" type="submit">
-                                <i class="fas fa-paper-plane me-1"></i>Send
+                            <input type="text" class="form-control" placeholder="Type a message..." name="content" autocomplete="off" id="message-input">
+                            <button class="btn btn-copper" type="submit" id="send-btn">
+                                <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
                     </form>
@@ -60,41 +102,94 @@
 
 {% block extra_js %}
 <script>
+    let lastMessageId = null;
+    let pollInterval = null;
+
     function scrollToBottom() {
-        var box = $('#message-box');
-        box.scrollTop(box.prop('scrollHeight'));
+        const box = document.getElementById('message-box');
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function appendMessage(msg, isSentByUser) {
+        const box = document.getElementById('message-box');
+        const div = document.createElement('div');
+        div.className = `d-flex mb-3 ${isSentByUser ? 'justify-content-end' : ''}`;
+        div.id = `msg-${msg.id}`;
+        let avatarHtml = '';
+        if (!isSentByUser) {
+            avatarHtml = `<img src="${msg.sender_avatar}" class="rounded-circle me-2" width="36" height="36">`;
+        }
+        div.innerHTML = `
+            ${avatarHtml}
+            <div class="message-bubble ${isSentByUser ? 'sent' : 'received'} p-3">
+                <small>${msg.content.replace(/\n/g, '<br>')}</small><br>
+                <small class="${isSentByUser ? 'text-white-50' : 'text-muted'}">${msg.time}</small>
+            </div>
+        `;
+        box.appendChild(div);
+        scrollToBottom();
+    }
+
+    function fetchNewMessages() {
+        let url = window.location.href;
+        if (lastMessageId) {
+            url += `?after=${lastMessageId}`;
+        }
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => response.json())
+            .then(data => {
+                if (data.messages && data.messages.length) {
+                    data.messages.forEach(msg => {
+                        appendMessage(msg, msg.sender_id === {{ user.id }});
+                        lastMessageId = msg.id;
+                    });
+                }
+            })
+            .catch(err => console.warn('Polling error:', err));
     }
 
     $(document).ready(function() {
         scrollToBottom();
 
+        // Get last message ID for polling
+        const lastMsg = document.querySelector('#message-box .d-flex:last-child');
+        if (lastMsg && lastMsg.id) {
+            lastMessageId = lastMsg.id.replace('msg-', '');
+        }
+
+        // Poll every 3 seconds
+        pollInterval = setInterval(fetchNewMessages, 3000);
+
+        // Send message via AJAX
         $('#message-form').submit(function(e) {
             e.preventDefault();
-            var form = $(this);
-            var url = form.data('send-url');
-            var content = form.find('input[name="content"]').val().trim();
+            const input = $('#message-input');
+            const content = input.val().trim();
             if (!content) return;
 
-            // Use global CSRF token set in base.html
-            $.post(url, {content: content, csrfmiddlewaretoken: window.CSRF_TOKEN}, function(data) {
+            const sendUrl = "{% url 'portfolio:send_message' conversation.id %}";
+            $.post(sendUrl, { content: content, csrfmiddlewaretoken: window.CSRF_TOKEN }, function(data) {
                 if (data.success) {
-                    var msgBox = $('#message-box');
-                    msgBox.append(`
-                        <div class="d-flex mb-3 justify-content-end">
-                            <div class="message-bubble bg-copper text-white p-3 rounded">
-                                <small>${data.message.content}</small><br>
-                                <small class="text-white-50">just now</small>
-                            </div>
-                        </div>
-                    `);
-                    form.find('input[name="content"]').val('');
-                    scrollToBottom();
+                    input.val('');
+                    appendMessage({
+                        id: data.message.id,
+                        content: data.message.content,
+                        time: 'just now',
+                        sender_id: {{ user.id }},
+                        sender_avatar: "{% if user.profile.avatar %}{{ user.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ user.display_name|urlencode }}&background=198754&color=fff&size=36{% endif %}"
+                    }, true);
+                    lastMessageId = data.message.id;
                 } else {
                     alert('Could not send message.');
                 }
             }).fail(function(xhr) {
                 alert(xhr.responseJSON?.error || 'Could not send message.');
             });
+        });
+
+        // Clear interval on page unload
+        window.addEventListener('beforeunload', function() {
+            if (pollInterval) clearInterval(pollInterval);
         });
     });
 </script>

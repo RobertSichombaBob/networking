@@ -1,12 +1,19 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Connection Requests – Deriv.Ed{% endblock %}
+{% block title %}Connection Requests – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <a href="{% url 'portfolio:network' %}" class="btn btn-outline-secondary btn-sm mb-3">
-        <i class="fas fa-arrow-left me-1"></i>Back to Network
-    </a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{% url 'portfolio:network' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Back to Network
+        </a>
+        {% if user.is_superuser %}
+        <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-crown me-1"></i>Admin Dashboard
+        </a>
+        {% endif %}
+    </div>
 
     <h1 class="h3 fw-bold mb-4"><i class="fas fa-user-clock me-2 text-copper"></i>Connection Requests</h1>
 

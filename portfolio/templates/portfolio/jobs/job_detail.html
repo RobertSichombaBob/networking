@@ -1,6 +1,6 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}{{ job.title }} – Deriv.Ed{% endblock %}
+{% block title %}{{ job.title }} – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -89,6 +89,24 @@
                                 <i class="fas fa-users me-2"></i>View Applications
                             </a>
                         {% endif %}
+
+                        <!-- SUPERUSER ACTIONS -->
+                        {% if user.is_superuser %}
+                            <hr>
+                            <h6 class="fw-bold text-copper"><i class="fas fa-crown me-1"></i>Admin Actions</h6>
+                            <a href="{% url 'portfolio:edit_job' job.slug %}" class="btn btn-outline-primary w-100 mb-2">
+                                <i class="fas fa-edit me-2"></i>Edit Job (Admin)
+                            </a>
+                            <a href="{% url 'portfolio:delete_job' job.slug %}" class="btn btn-outline-danger w-100 mb-2">
+                                <i class="fas fa-trash me-2"></i>Delete Job
+                            </a>
+                            <a href="{% url 'portfolio:job_applications' job.slug %}" class="btn btn-outline-info w-100 mb-2">
+                                <i class="fas fa-users me-2"></i>Manage Applications
+                            </a>
+                            <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper w-100">
+                                <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+                            </a>
+                        {% endif %}
                     {% else %}
                         <p class="text-muted text-center mb-3">
                             <i class="fas fa-lock me-1"></i> Please <a href="{% url 'portfolio:login' %}">login</a> to apply.
@@ -134,15 +152,10 @@
             var url = isSaved ? unsaveUrl : saveUrl;
             $.post(url, {}, function(data) {
                 if (data.success) {
-                    // Toggle state
                     btn.data('is-saved', !isSaved);
-                    var icon = btn.find('i');
-                    var text = btn.contents().filter(function() { return this.nodeType === 3; }).text().trim();
                     if (isSaved) {
-                        icon.removeClass('fas').addClass('far');
                         btn.html('<i class="far fa-bookmark me-2"></i>Save Job');
                     } else {
-                        icon.removeClass('far').addClass('fas');
                         btn.html('<i class="fas fa-bookmark me-2"></i>Saved');
                     }
                 }

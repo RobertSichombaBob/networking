@@ -1,29 +1,41 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Messages – Deriv.Ed{% endblock %}
+{% block title %}Messages – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <h1 class="h3 fw-bold mb-4"><i class="fas fa-comments me-2 text-copper"></i>Messages</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 fw-bold"><i class="fas fa-comments me-2 text-copper"></i>Messages</h1>
+        {% if user.is_superuser %}
+        <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper btn-sm">
+            <i class="fas fa-crown me-1"></i>Admin Dashboard
+        </a>
+        {% endif %}
+    </div>
 
     <div class="row g-4">
         <!-- Conversation list sidebar -->
         <div class="col-md-4">
             <div class="list-group shadow-sm">
                 {% for conversation in conversations %}
-                    <a href="{% url 'portfolio:conversation_detail' conversation.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start py-3">
+                    <a href="{% url 'portfolio:conversation_detail' conversation.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start py-3 {% if conversation.id == active_conversation_id %}active{% endif %}">
                         <div class="flex-grow-1">
                             {% for participant in conversation.participants.all %}
                                 {% if participant != user %}
                                     <h6 class="mb-1 fw-bold">{{ participant.display_name }}</h6>
-                                    <small class="text-muted">{{ participant.headline|truncatechars:30 }}</small><br>
+                                    <small class="text-muted">{{ participant.headline|truncatechars:30 }}</small>
                                 {% endif %}
                             {% endfor %}
-                            <small class="text-muted">{{ conversation.last_message_at|timesince }} ago</small>
+                            {% if conversation.last_message_preview %}
+                                <div class="small text-muted text-truncate mt-1">{{ conversation.last_message_preview }}</div>
+                            {% endif %}
                         </div>
-                        {% if conversation.unread_count %}
-                            <span class="badge bg-copper rounded-pill">{{ conversation.unread_count }}</span>
-                        {% endif %}
+                        <div class="text-end ms-2">
+                            <small class="text-muted">{{ conversation.last_message_at|timesince }} ago</small>
+                            {% if conversation.unread_count %}
+                                <span class="badge bg-copper rounded-pill d-block mt-1">{{ conversation.unread_count }}</span>
+                            {% endif %}
+                        </div>
                     </a>
                 {% empty %}
                     <div class="text-center py-5">

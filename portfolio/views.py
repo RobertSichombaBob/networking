@@ -1460,3 +1460,64 @@ class PrivacyView(TemplateView):
 
 class TermsView(TemplateView):
     template_name = "portfolio/terms.html"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# portfolio/views.py
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.decorators import method_decorator
+from datetime import timedelta
+
+@method_decorator(staff_member_required, name='dispatch')
+class AdminDashboardView(TemplateView):
+    template_name = "portfolio/admin/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        # Statistics
+        context['total_jobs'] = m.Job.objects.count()
+        context['active_jobs'] = m.Job.objects.filter(is_active=True).count()
+        context['total_companies'] = m.Company.objects.count()
+        context['verified_companies'] = m.Company.objects.filter(is_verified=True).count()
+        context['total_users'] = m.CustomUser.objects.count()
+        context['job_seekers'] = m.CustomUser.objects.filter(role='job_seeker').count()
+        context['employers'] = m.CustomUser.objects.filter(role='employer').count()
+        context['total_applications'] = m.JobApplication.objects.count()
+        context['pending_applications'] = m.JobApplication.objects.filter(status='applied').count()
+
+        # Recent items (limit 5)
+        context['recent_jobs'] = m.Job.objects.all().order_by('-created_at')[:5]
+        context['recent_users'] = m.CustomUser.objects.all().order_by('-date_joined')[:5]
+        context['recent_applications'] = m.JobApplication.objects.all().order_by('-applied_at')[:5]
+        context['recent_companies'] = m.Company.objects.all().order_by('-created_at')[:5]
+
+        # Chart data: jobs posted per day for last 7 days
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=6)
+        date_range = [start_date + timedelta(days=i) for i in range(7)]
+        labels = [d.strftime('%b %d') for d in date_range]
+        counts = []
+        for day in date_range:
+            count = m.Job.objects.filter(
+                created_at__date=day.date()
+            ).count()
+            counts.append(count)
+        context['chart_labels'] = labels
+        context['chart_data'] = counts
+
+        return context

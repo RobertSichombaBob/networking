@@ -31,6 +31,16 @@
                         <a href="{% url 'portfolio:post_detail' item.data.id %}" class="btn btn-sm btn-link text-decoration-none">
                             <i class="far fa-comment"></i> {{ item.data.comment_count }}
                         </a>
+                        {% if user.is_superuser %}
+                        <div class="ms-auto">
+                            <a href="{% url 'portfolio:edit_post' item.data.id %}" class="text-primary me-2" title="Edit post">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'portfolio:delete_post' item.data.id %}" class="text-danger" title="Delete post" onclick="return confirm('Delete this post?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -56,6 +66,16 @@
                     </div>
                     <div>
                         <span class="badge bg-copper mb-2">{{ item.data.get_remote_status_display }}</span>
+                        {% if user.is_superuser %}
+                        <div class="mt-1">
+                            <a href="{% url 'portfolio:edit_job' item.data.slug %}" class="text-primary me-1" title="Edit job">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'portfolio:delete_job' item.data.slug %}" class="text-danger" title="Delete job" onclick="return confirm('Delete this job?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mt-3">

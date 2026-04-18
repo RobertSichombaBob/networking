@@ -1,17 +1,24 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Companies – Deriv.Ed{% endblock %}
+{% block title %}Companies – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header with create button (if user has permission) -->
+    <!-- Header with create button and admin dashboard for superusers -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h2 fw-bold"><i class="fas fa-building me-2 text-copper"></i>Companies</h1>
-        {% if user.is_authenticated and user.role == 'employer' %}
-            <a href="{% url 'portfolio:create_company' %}" class="btn btn-copper">
-                <i class="fas fa-plus me-2"></i>Add Company
-            </a>
-        {% endif %}
+        <div>
+            {% if user.is_authenticated and user.role == 'employer' %}
+                <a href="{% url 'portfolio:create_company' %}" class="btn btn-copper me-2">
+                    <i class="fas fa-plus me-2"></i>Add Company
+                </a>
+            {% endif %}
+            {% if user.is_superuser %}
+                <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper">
+                    <i class="fas fa-crown me-1"></i>Admin Dashboard
+                </a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="row g-4">
@@ -19,15 +26,30 @@
             <div class="col-md-6 col-lg-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <img src="{% if company.logo %}{{ company.logo.url }}{% else %}https://ui-avatars.com/api/?name={{ company.name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
-                                 class="rounded-circle me-3" width="60" height="60">
-                            <div>
-                                <h5 class="card-title fw-bold mb-0">{{ company.name }}</h5>
-                                {% if company.is_verified %}
-                                    <span class="badge bg-success small"><i class="fas fa-check-circle me-1"></i>Verified</span>
-                                {% endif %}
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center">
+                                <img src="{% if company.logo %}{{ company.logo.url }}{% else %}https://ui-avatars.com/api/?name={{ company.name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                     class="rounded-circle me-3" width="60" height="60">
+                                <div>
+                                    <h5 class="card-title fw-bold mb-0">{{ company.name }}</h5>
+                                    {% if company.is_verified %}
+                                        <span class="badge bg-success small"><i class="fas fa-check-circle me-1"></i>Verified</span>
+                                    {% endif %}
+                                </div>
                             </div>
+                            {% if user.is_superuser %}
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-link text-secondary" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'portfolio:edit_company' company.slug %}"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                    <li><a class="dropdown-item text-danger" href="{% url 'portfolio:delete_company' company.slug %}" onclick="return confirm('Delete this company?');"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'portfolio:admin_dashboard' %}"><i class="fas fa-crown me-2"></i>Admin Dashboard</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
                         </div>
                         <p class="card-text text-secondary">{{ company.industry|default:"—" }}</p>
                         <p class="card-text"><small class="text-muted">{{ company.size|default:"Size unknown" }}</small></p>
@@ -40,7 +62,7 @@
                 <div class="text-center py-5">
                     <i class="fas fa-building fa-4x text-muted mb-3"></i>
                     <h5>No companies yet</h5>
-                    <p class="text-muted">Companies hiring on Deriv.Ed will appear here.</p>
+                    <p class="text-muted">Companies hiring on Network will appear here.</p>
                     {% if user.is_authenticated and user.role == 'employer' %}
                         <a href="{% url 'portfolio:create_company' %}" class="btn btn-copper">Add your company</a>
                     {% endif %}
