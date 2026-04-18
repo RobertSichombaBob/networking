@@ -28,7 +28,9 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'portfolio',
     'django_select2',
-    'whitenoise.runserver_nostatic',   # for WhiteNoise in production
+    'whitenoise.runserver_nostatic', 
+    'dal',
+    'dal_select2',  # for WhiteNoise in production
 ]
 
 AUTH_USER_MODEL = 'portfolio.CustomUser'
