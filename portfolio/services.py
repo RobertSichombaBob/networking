@@ -619,3 +619,85 @@ class MatchingService:
         # Clamp
         score = max(0.0, min(100.0, score))
         return score, reasons
+
+
+# =============================================================================
+# UNIFIED FEED SERVICE (FIXED – NO DATABASE ANNOTATION)
+# =============================================================================
+
+class UnifiedFeedService:
+    """Combine posts, recommended jobs, and network updates into a single scored feed."""
+
+    @staticmethod
+    def get_feed_items(user, limit=10, offset=0):
+        from .models import Post, Job, Connection, Follow
+        from django.db.models import Q
+        from .services import MatchingService
+
+        items = []
+
+        if user.is_authenticated:
+            # ---- 1. Posts from network (Python‑side scoring) ----
+            connections = Connection.objects.filter(
+                Q(from_user=user, status=Connection.Status.ACCEPTED) |
+                Q(to_user=user, status=Connection.Status.ACCEPTED)
+            ).values_list('from_user_id', 'to_user_id')
+            connected_ids = set()
+            for a, b in connections:
+                connected_ids.add(a)
+                connected_ids.add(b)
+            connected_ids.discard(user.id)
+
+            followed_ids = set(Follow.objects.filter(follower=user).values_list('following_id', flat=True))
+            visible_authors = connected_ids | followed_ids | {user.id}
+
+            posts = Post.objects.filter(
+                author_id__in=visible_authors,
+                is_deleted=False,
+                moderation_status=Post.ModerationStatus.OK
+            ).exclude(
+                Q(visibility=Post.Visibility.PRIVATE) & ~Q(author=user)
+            ).select_related('author')
+
+            for post in posts:
+                # recency score: newer posts get higher score (max 30 days)
+                days_ago = (timezone.now() - post.created_at).days
+                recency_score = max(0, 30 - days_ago)   # score from 0 to 30
+                items.append({
+                    'type': 'post',
+                    'data': post,
+                    'score': recency_score,
+                    'timestamp': post.created_at
+                })
+
+            # ---- 2. Recommended jobs (from MatchingService) ----
+            match_results = MatchingService.get_top_jobs_for_user(user, limit=50)
+            for match in match_results:
+                job = match.job
+                items.append({
+                    'type': 'job',
+                    'data': job,
+                    'score': float(match.score) * 1.0,   # keep as is (0‑100)
+                    'timestamp': job.created_at,
+                    'match_reasons': match.reasons
+                })
+
+        else:
+            # Anonymous user: show featured jobs
+            jobs = Job.objects.filter(
+                is_active=True,
+                moderation_status=Job.ModerationStatus.OK
+            ).select_related('company')[:20]
+            for job in jobs:
+                items.append({
+                    'type': 'job',
+                    'data': job,
+                    'score': 0,
+                    'timestamp': job.created_at
+                })
+
+        # Sort by score (desc) then by timestamp (desc)
+        items.sort(key=lambda x: (x['score'], x['timestamp']), reverse=True)
+
+        # Apply pagination
+        return items[offset:offset+limit]

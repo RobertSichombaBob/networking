@@ -1,3 +1,4 @@
+
 # portfolio/urls.py
 from django.urls import path
 from . import views
@@ -129,6 +130,21 @@ urlpatterns = [
 
     path('privacy/', views.PrivacyView.as_view(), name='privacy'),
     path('terms/', views.TermsView.as_view(), name='terms'),
+
+
+
+
+
+path('api/like/<uuid:post_id>/', views.htmx_like_post, name='htmx_like_post'),
+    path('api/save/<slug:job_slug>/', views.htmx_save_job, name='htmx_save_job'),
+    path('api/apply/<slug:job_slug>/', views.htmx_apply_job, name='htmx_apply_job'),
+
+
+
+
+
+
+
 
 
 

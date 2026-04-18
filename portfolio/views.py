@@ -107,18 +107,99 @@ class CompanyAdminMixin(UserPassesTestMixin):
 # STATIC PAGES
 # =============================================================================
 
+# portfolio/views.py
+
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from .services import UnifiedFeedService, MatchingService
+
 class HomeView(TemplateView):
     template_name = "portfolio/home.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["featured_jobs"] = m.Job.objects.filter(
-            is_active=True, moderation_status=m.Moderation.ModerationStatus.OK
-        ).select_related("company", "employer")[:6]
+        user = self.request.user
+
+        # Base stats (always shown)
         context["job_count"] = m.Job.objects.filter(is_active=True).count()
         context["user_count"] = m.CustomUser.objects.filter(is_active=True).count()
         context["company_count"] = m.Company.objects.filter(is_verified=True).count()
+
+        if user.is_authenticated:
+            # Load first batch of feed items (10)
+            feed_items = UnifiedFeedService.get_feed_items(user, limit=10, offset=0)
+            context["feed_items"] = feed_items
+            context["has_more"] = len(feed_items) == 10
+
+            # Sidebar data
+            context["pending_requests"] = m.Connection.objects.filter(
+                to_user=user, status=m.Connection.Status.PENDING
+            ).select_related("from_user")[:5]
+
+            context["unread_messages_count"] = m.MessageDelivery.objects.filter(
+                user=user, read_at__isnull=True
+            ).count()
+            context["saved_jobs_count"] = m.SavedJob.objects.filter(user=user).count()
+            context["active_alerts_count"] = m.JobAlert.objects.filter(user=user, is_active=True).count()
+
         return context
+
+    def get(self, request, *args, **kwargs):
+        # HTMX request for loading more items
+        if request.headers.get('HX-Request'):
+            offset = int(request.GET.get('offset', 0))
+            user = request.user
+            if user.is_authenticated:
+                feed_items = UnifiedFeedService.get_feed_items(user, limit=10, offset=offset)
+                html = render_to_string('portfolio/partials/feed_items.html', {
+                    'feed_items': feed_items,
+                    'has_more': len(feed_items) == 10,
+                    'offset': offset + len(feed_items)
+                }, request=request)
+                return HttpResponse(html)
+            return HttpResponse("")
+        return super().get(request, *args, **kwargs)
+
+
+
+
+
+
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+
+
+@login_required
+@require_POST
+def htmx_like_post(request, post_id):
+    post = get_object_or_404(m.Post, id=post_id)
+    try:
+        m.PostLike.like(post, request.user)
+        return JsonResponse({"liked": True, "like_count": post.like_count})
+    except ValidationError:
+        return JsonResponse({"liked": False, "like_count": post.like_count})
+
+@login_required
+@require_POST
+def htmx_save_job(request, job_slug):
+    job = get_object_or_404(m.Job, slug=job_slug)
+    saved, created = m.SavedJob.objects.get_or_create(user=request.user, job=job)
+    if not created:
+        saved.delete()
+        saved = False
+    return JsonResponse({"saved": bool(saved)})
+
+@login_required
+@require_POST
+def htmx_apply_job(request, job_slug):
+    job = get_object_or_404(m.Job, slug=job_slug)
+    if m.JobApplication.objects.filter(user=request.user, job=job).exists():
+        return JsonResponse({"error": "Already applied"}, status=400)
+    app = m.JobApplication.objects.create(user=request.user, job=job, status=m.JobApplication.Status.APPLIED)
+    return JsonResponse({"success": True, "status": app.get_status_display()})
+
+
+
 
 
 class AboutView(TemplateView):

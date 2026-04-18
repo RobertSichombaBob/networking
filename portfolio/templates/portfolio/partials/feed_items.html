@@ -1,0 +1,85 @@
+{% load static %}
+{% for item in feed_items %}
+<div class="card border-0 shadow-sm mb-4 feed-item">
+    <div class="card-body">
+        {% if item.type == 'post' %}
+            <!-- Post display -->
+            <div class="d-flex mb-3">
+                <div class="flex-shrink-0">
+                    {% if item.data.author.profile.avatar %}
+                        <img src="{{ item.data.author.profile.avatar.url }}" width="48" height="48" class="rounded-circle">
+                    {% else %}
+                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-0">{{ item.data.author.display_name }}</h6>
+                        <small class="text-secondary">{{ item.data.created_at|timesince }} ago</small>
+                    </div>
+                    <p class="mb-2">{{ item.data.content|linebreaksbr|truncatewords:50 }}</p>
+                    {% if item.data.media %}
+                        <img src="{{ item.data.media.url }}" class="img-fluid rounded mb-2" style="max-height: 300px;">
+                    {% endif %}
+                    <div class="d-flex gap-3 mt-2">
+                        <button class="btn btn-sm btn-link text-decoration-none like-btn" data-url="{% url 'portfolio:htmx_like_post' item.data.id %}">
+                            <i class="far fa-heart"></i>
+                            <span class="like-count">{{ item.data.like_count }}</span>
+                        </button>
+                        <a href="{% url 'portfolio:post_detail' item.data.id %}" class="btn btn-sm btn-link text-decoration-none">
+                            <i class="far fa-comment"></i> {{ item.data.comment_count }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% elif item.type == 'job' %}
+            <!-- Job recommendation display -->
+            <div class="border rounded-3 p-3 bg-light">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="mb-1">{{ item.data.title }}</h5>
+                        <p class="small text-secondary mb-1">
+                            <i class="fas fa-building me-1"></i> {{ item.data.company.name|default:item.data.employer.display_name }}
+                        </p>
+                        <p class="small text-secondary mb-1">
+                            <i class="fas fa-map-marker-alt me-1"></i> {{ item.data.location }}
+                        </p>
+                        {% if item.match_reasons %}
+                            <div class="mt-2">
+                                {% for reason in item.match_reasons|slice:":2" %}
+                                    <span class="badge bg-success me-1">{{ reason }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="badge bg-copper mb-2">{{ item.data.get_remote_status_display }}</span>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        {% if item.data.salary_min %}
+                            <small class="text-secondary">{{ item.data.salary_min }}{% if item.data.salary_max %} - {{ item.data.salary_max }}{% endif %} {{ item.data.salary_currency }}</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-copper save-btn me-2" data-url="{% url 'portfolio:htmx_save_job' item.data.slug %}">
+                            <i class="far fa-bookmark"></i> Save
+                        </button>
+                        <button class="btn btn-sm btn-copper apply-btn" data-url="{% url 'portfolio:htmx_apply_job' item.data.slug %}">
+                            Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="alert alert-info text-center">No feed items yet. Connect with people or follow companies to see updates.</div>
+{% endfor %}
+{% if has_more %}
+<div class="infinite-scroll-trigger" data-loading="false" data-next-offset="{{ offset }}"></div>
+{% endif %}
