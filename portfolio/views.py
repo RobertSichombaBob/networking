@@ -120,46 +120,44 @@ class HomeView(TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        # Base stats (always shown)
+        # Base stats
         context["job_count"] = m.Job.objects.filter(is_active=True).count()
         context["user_count"] = m.CustomUser.objects.filter(is_active=True).count()
         context["company_count"] = m.Company.objects.filter(is_verified=True).count()
 
-        if user.is_authenticated:
-            # Load first batch of feed items (10)
-            feed_items = UnifiedFeedService.get_feed_items(user, limit=10, offset=0)
-            context["feed_items"] = feed_items
-            context["has_more"] = len(feed_items) == 10
+        # Featured jobs (needed by the template)
+        context["featured_jobs"] = m.Job.objects.filter(
+            is_active=True,
+            moderation_status=m.Moderation.ModerationStatus.OK
+        ).select_related("company", "employer")[:6]
 
-            # Sidebar data
+        if user.is_authenticated:
+            try:
+                feed_items = UnifiedFeedService.get_feed_items(user, limit=10, offset=0)
+                context["feed_items"] = feed_items
+                context["has_more"] = len(feed_items) == 10
+            except Exception as e:
+                print(f"Feed error: {e}")
+                context["feed_items"] = []
+                context["has_more"] = False
+
             context["pending_requests"] = m.Connection.objects.filter(
                 to_user=user, status=m.Connection.Status.PENDING
             ).select_related("from_user")[:5]
-
             context["unread_messages_count"] = m.MessageDelivery.objects.filter(
                 user=user, read_at__isnull=True
             ).count()
             context["saved_jobs_count"] = m.SavedJob.objects.filter(user=user).count()
             context["active_alerts_count"] = m.JobAlert.objects.filter(user=user, is_active=True).count()
+        else:
+            context["feed_items"] = []
+            context["has_more"] = False
+            context["pending_requests"] = []
+            context["unread_messages_count"] = 0
+            context["saved_jobs_count"] = 0
+            context["active_alerts_count"] = 0
 
         return context
-
-    def get(self, request, *args, **kwargs):
-        # HTMX request for loading more items
-        if request.headers.get('HX-Request'):
-            offset = int(request.GET.get('offset', 0))
-            user = request.user
-            if user.is_authenticated:
-                feed_items = UnifiedFeedService.get_feed_items(user, limit=10, offset=offset)
-                html = render_to_string('portfolio/partials/feed_items.html', {
-                    'feed_items': feed_items,
-                    'has_more': len(feed_items) == 10,
-                    'offset': offset + len(feed_items)
-                }, request=request)
-                return HttpResponse(html)
-            return HttpResponse("")
-        return super().get(request, *args, **kwargs)
-
 
 
 
