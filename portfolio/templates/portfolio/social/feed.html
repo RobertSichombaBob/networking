@@ -44,7 +44,8 @@
             </div>
 
             <div id="feed-container">
-                {% include "portfolio/partials/feed_items_social.html" with posts=posts %}
+                <!-- FIXED: Use feed_items.html with correct variable name -->
+                {% include "portfolio/partials/feed_items.html" with feed_items=posts has_more=has_more offset=10 %}
             </div>
 
             <div id="loading-spinner" class="text-center py-4 d-none">
@@ -53,7 +54,6 @@
                 </div>
             </div>
 
-            <!-- Pagination (if not using infinite scroll, keep it) -->
             {% if is_paginated %}
                 {% include "portfolio/includes/pagination.html" %}
             {% endif %}
@@ -65,7 +65,7 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // Like/Unlike (works for both feed and detail)
+        // Like/Unlike
         $(document).on('click', '.like-btn', function(e) {
             e.preventDefault();
             const btn = $(this);
@@ -85,7 +85,7 @@
             });
         });
 
-        // Toggle comments section
+        // Toggle comments
         $(document).on('click', '.comment-toggle', function() {
             const postId = $(this).data('post-id');
             $(`#comments-${postId}`).toggleClass('d-none');

@@ -1522,7 +1522,6 @@ class AdminDashboardView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user = self.request.user
 
         # Statistics
         context['total_jobs'] = m.Job.objects.count()
@@ -1535,22 +1534,25 @@ class AdminDashboardView(TemplateView):
         context['total_applications'] = m.JobApplication.objects.count()
         context['pending_applications'] = m.JobApplication.objects.filter(status='applied').count()
 
-        # Recent items (limit 5)
+        # Recent items
         context['recent_jobs'] = m.Job.objects.all().order_by('-created_at')[:5]
         context['recent_users'] = m.CustomUser.objects.all().order_by('-date_joined')[:5]
         context['recent_applications'] = m.JobApplication.objects.all().order_by('-applied_at')[:5]
         context['recent_companies'] = m.Company.objects.all().order_by('-created_at')[:5]
 
-        # Chart data: jobs posted per day for last 7 days
+        # Chart data – safe for PostgreSQL (range query, no __date)
         end_date = timezone.now()
         start_date = end_date - timedelta(days=6)
-        date_range = [start_date + timedelta(days=i) for i in range(7)]
-        labels = [d.strftime('%b %d') for d in date_range]
+        labels = []
         counts = []
-        for day in date_range:
+        for i in range(7):
+            day = start_date + timedelta(days=i)
+            next_day = day + timedelta(days=1)
             count = m.Job.objects.filter(
-                created_at__date=day.date()
+                created_at__gte=day,
+                created_at__lt=next_day
             ).count()
+            labels.append(day.strftime('%b %d'))
             counts.append(count)
         context['chart_labels'] = labels
         context['chart_data'] = counts
