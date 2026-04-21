@@ -1,6 +1,6 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}{{ profile_user.display_name }} – Deriv.Ed{% endblock %}
+{% block title %}{{ profile_user.display_name }} – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -22,11 +22,11 @@
                     {% elif has_pending_request %}
                         <span class="btn btn-warning disabled"><i class="fas fa-clock me-2"></i>Request Pending</span>
                     {% else %}
-                        <button class="btn btn-outline-copper connect-btn" data-user-id="{{ profile_user.id }}">
+                        <button class="btn btn-outline-copper connect-btn" data-url="{% url 'portfolio:send_connection_request' profile_user.id %}">
                             <i class="fas fa-user-plus me-2"></i>Connect
                         </button>
                     {% endif %}
-                    <button class="btn btn-outline-copper follow-btn" data-user-id="{{ profile_user.id }}">
+                    <button class="btn btn-outline-copper follow-btn" data-url-follow="{% url 'portfolio:follow_user' profile_user.id %}" data-url-unfollow="{% url 'portfolio:unfollow_user' profile_user.id %}" data-is-following="{{ is_following|yesno:'true,false' }}">
                         <i class="{% if is_following %}fas{% else %}far{% endif %} fa-star me-2"></i>
                         {% if is_following %}Following{% else %}Follow{% endif %}
                     </button>
@@ -123,13 +123,12 @@
     </div>
 </div>
 
-<!-- JavaScript for connect/follow buttons -->
 <script>
     $(document).ready(function() {
         $('.connect-btn').click(function() {
             var btn = $(this);
-            var userId = btn.data('user-id');
-            $.post("{% url 'portfolio:send_connection_request' 0 %}".replace('0', userId), {}, function(data) {
+            var url = btn.data('url');
+            $.post(url, {}, function(data) {
                 btn.replaceWith('<span class="btn btn-warning disabled"><i class="fas fa-clock me-2"></i>Request Sent</span>');
             }).fail(function(xhr) {
                 alert(xhr.responseJSON.error || 'Could not send request.');
@@ -138,15 +137,16 @@
 
         $('.follow-btn').click(function() {
             var btn = $(this);
-            var userId = btn.data('user-id');
-            var isFollowing = btn.text().trim() === 'Following';
-            var url = isFollowing ? "{% url 'portfolio:unfollow_user' 0 %}".replace('0', userId) : "{% url 'portfolio:follow_user' 0 %}".replace('0', userId);
+            var isFollowing = btn.data('is-following') === true;
+            var url = isFollowing ? btn.data('url-unfollow') : btn.data('url-follow');
             $.post(url, {}, function(data) {
                 if (data.success) {
                     if (isFollowing) {
-                        btn.html('<i class="far fa-star me-2"></i>Follow').removeClass('btn-copper').addClass('btn-outline-copper');
+                        btn.html('<i class="far fa-star me-2"></i>Follow').data('is-following', false);
+                        btn.data('is-following', false);
                     } else {
-                        btn.html('<i class="fas fa-star me-2"></i>Following').removeClass('btn-outline-copper').addClass('btn-copper');
+                        btn.html('<i class="fas fa-star me-2"></i>Following').data('is-following', true);
+                        btn.data('is-following', true);
                     }
                 }
             }).fail(function(xhr) {

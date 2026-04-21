@@ -128,6 +128,9 @@ if not DEBUG:
         'https://*.yourdomain.com',   # replace with your actual domain if you have one
     ]
 
+
 # ========== OTHER SETTINGS ==========
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/feed/'      # Redirect to feed after login
+LOGOUT_REDIRECT_URL = '/'          # Redirect to home after logout

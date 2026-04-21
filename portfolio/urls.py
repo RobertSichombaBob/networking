@@ -147,7 +147,7 @@ path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin_dashboa
 
 
 
-
+path('companies/<slug:slug>/delete/', views.DeleteCompanyView.as_view(), name='delete_company'),
 
 
 

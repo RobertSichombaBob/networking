@@ -1,6 +1,36 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Your Feed – Deriv.Ed{% endblock %}
+{% block title %}Your Feed – Network{% endblock %}
+
+{% block extra_css %}
+<style>
+    .post-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .post-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .comment-avatar {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+    }
+    .like-btn.active i {
+        color: #0a66c2;
+    }
+    .like-btn.active {
+        background-color: rgba(10,102,194,0.1);
+    }
+    .comment-toggle {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .comment-toggle:hover {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -13,84 +43,17 @@
                 </a>
             </div>
 
-            {% for post in posts %}
-                <div class="card border-0 shadow-sm mb-4 post-card" data-post-id="{{ post.id }}">
-                    <div class="card-body">
-                        <!-- Author info -->
-                        <div class="d-flex align-items-center mb-3">
-                            <img src="{% if post.author.profile.avatar %}{{ post.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ post.author.display_name|urlencode }}&background=198754&color=fff&size=50{% endif %}"
-                                 class="rounded-circle me-3" width="50" height="50">
-                            <div>
-                                <h6 class="mb-0 fw-bold">
-                                    <a href="{% url 'portfolio:public_profile' post.author.id %}" class="text-decoration-none text-dark">
-                                        {{ post.author.display_name }}
-                                    </a>
-                                </h6>
-                                <small class="text-muted">{{ post.created_at|timesince }} ago</small>
-                            </div>
-                        </div>
+            <div id="feed-container">
+                {% include "portfolio/partials/feed_items_social.html" with posts=posts %}
+            </div>
 
-                        <!-- Post content -->
-                        <p class="card-text">{{ post.content|linebreaks }}</p>
-                        {% if post.media %}
-                            <img src="{{ post.media.url }}" class="img-fluid rounded mb-3" alt="Post media">
-                        {% endif %}
-
-                        <!-- Action buttons -->
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <div>
-                                <button class="btn btn-sm like-btn {% if post.liked_by_user %}active{% endif %}"
-                                        data-like-url="{% url 'portfolio:like_post' post.id %}"
-                                        data-unlike-url="{% url 'portfolio:unlike_post' post.id %}"
-                                        data-is-liked="{{ post.liked_by_user|yesno:'true,false' }}">
-                                    <i class="{% if post.liked_by_user %}fas{% else %}far{% endif %} fa-thumbs-up me-1"></i>
-                                    <span class="like-count">{{ post.like_count }}</span>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary comment-toggle" data-post-id="{{ post.id }}">
-                                    <i class="far fa-comment me-1"></i>{{ post.comment_count }}
-                                </button>
-                            </div>
-                            <a href="{% url 'portfolio:post_detail' post.id %}" class="btn btn-sm btn-outline-copper">
-                                View <i class="fas fa-arrow-right ms-1"></i>
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Comments section (initially hidden) -->
-                    <div class="card-footer bg-transparent comments-section d-none" id="comments-{{ post.id }}">
-                        <div class="comments-list mb-3">
-                            {% for comment in post.comments.all|slice:":5" %}
-                                <div class="d-flex mb-3">
-                                    <img src="{% if comment.author.profile.avatar %}{{ comment.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ comment.author.display_name|urlencode }}&background=ccc&color=333&size=30{% endif %}"
-                                         class="rounded-circle me-2" width="30" height="30">
-                                    <div class="bg-light p-2 rounded flex-grow-1">
-                                        <strong class="small">{{ comment.author.display_name }}</strong>
-                                        <small class="text-muted ms-2">{{ comment.created_at|timesince }} ago</small>
-                                        <p class="mb-0 small">{{ comment.content }}</p>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Comment form -->
-                        <form class="comment-form" data-post-id="{{ post.id }}" data-comment-url="{% url 'portfolio:add_comment' post.id %}">
-                            <div class="input-group">
-                                <input type="text" class="form-control form-control-sm" placeholder="Write a comment..." name="content" required>
-                                <button class="btn btn-copper btn-sm" type="submit">Post</button>
-                            </div>
-                        </form>
-                    </div>
+            <div id="loading-spinner" class="text-center py-4 d-none">
+                <div class="spinner-border text-copper" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
-            {% empty %}
-                <div class="text-center py-5">
-                    <i class="far fa-newspaper fa-4x text-muted mb-3"></i>
-                    <h5>No posts in your feed</h5>
-                    <p class="text-muted">Follow people or create your first post!</p>
-                    <a href="{% url 'portfolio:create_post' %}" class="btn btn-copper">Create Post</a>
-                </div>
-            {% endfor %}
+            </div>
 
-            <!-- Pagination -->
+            <!-- Pagination (if not using infinite scroll, keep it) -->
             {% if is_paginated %}
                 {% include "portfolio/includes/pagination.html" %}
             {% endif %}
@@ -102,14 +65,14 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // Like / unlike
-        $('.like-btn').click(function(e) {
+        // Like/Unlike (works for both feed and detail)
+        $(document).on('click', '.like-btn', function(e) {
             e.preventDefault();
-            var btn = $(this);
-            var likeUrl = btn.data('like-url');
-            var unlikeUrl = btn.data('unlike-url');
-            var isLiked = btn.data('is-liked') === true;
-            var url = isLiked ? unlikeUrl : likeUrl;
+            const btn = $(this);
+            const likeUrl = btn.data('like-url');
+            const unlikeUrl = btn.data('unlike-url');
+            const isLiked = btn.data('is-liked') === true;
+            const url = isLiked ? unlikeUrl : likeUrl;
 
             $.post(url, {}, function(data) {
                 if (data.success) {
@@ -122,27 +85,26 @@
             });
         });
 
-        // Toggle comments
-        $('.comment-toggle').click(function() {
-            var postId = $(this).data('post-id');
-            $('#comments-' + postId).toggleClass('d-none');
+        // Toggle comments section
+        $(document).on('click', '.comment-toggle', function() {
+            const postId = $(this).data('post-id');
+            $(`#comments-${postId}`).toggleClass('d-none');
         });
 
-        // Post comment
-        $('.comment-form').submit(function(e) {
+        // Post comment via AJAX
+        $(document).on('submit', '.comment-form', function(e) {
             e.preventDefault();
-            var form = $(this);
-            var url = form.data('comment-url');
-            var content = form.find('input[name="content"]').val().trim();
+            const form = $(this);
+            const url = form.data('comment-url');
+            const content = form.find('input[name="content"]').val().trim();
             if (!content) return;
 
             $.post(url, {content: content}, function(data) {
                 if (data.success) {
-                    // Append the new comment to the list
-                    var commentsList = form.closest('.comments-section').find('.comments-list');
-                    var newComment = `
+                    const commentsList = form.closest('.comments-section').find('.comments-list');
+                    const newComment = `
                         <div class="d-flex mb-3">
-                            <img src="https://ui-avatars.com/api/?name={{ user.display_name|urlencode }}&background=198754&color=fff&size=30" class="rounded-circle me-2" width="30" height="30">
+                            <img src="https://ui-avatars.com/api/?name={{ user.display_name|urlencode }}&background=198754&color=fff&size=32" class="rounded-circle me-2 comment-avatar">
                             <div class="bg-light p-2 rounded flex-grow-1">
                                 <strong class="small">{{ user.display_name }}</strong>
                                 <small class="text-muted ms-2">just now</small>
@@ -153,9 +115,9 @@
                     commentsList.append(newComment);
                     form.find('input[name="content"]').val('');
                     // Update comment count
-                    var commentCountSpan = form.closest('.post-card').find('.comment-toggle');
-                    var currentCount = parseInt(commentCountSpan.text().trim()) || 0;
-                    commentCountSpan.html('<i class="far fa-comment me-1"></i>' + (currentCount + 1));
+                    const commentCountSpan = form.closest('.post-card').find('.comment-count');
+                    const currentCount = parseInt(commentCountSpan.text()) || 0;
+                    commentCountSpan.html(`<i class="far fa-comment me-1"></i>${currentCount + 1}`);
                 }
             }).fail(function(xhr) {
                 alert(xhr.responseJSON?.error || 'Could not post comment.');

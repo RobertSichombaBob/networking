@@ -1057,6 +1057,7 @@ class Job(UUIDPk, TimeStamped, SoftDelete, Moderation):
 
     application_deadline = models.DateTimeField(blank=True, null=True)
     external_application_url = models.URLField(blank=True)
+    apply_email = models.EmailField(blank=True, null=True, help_text="If provided, candidates will send CV to this email instead of using the internal form.")
     is_active = models.BooleanField(default=True, db_index=True)
 
     views = models.PositiveIntegerField(default=0)
@@ -1101,6 +1102,7 @@ class Job(UUIDPk, TimeStamped, SoftDelete, Moderation):
         cname = self.company.name if self.company_id else ""
         return f"{self.title} @ {cname or self.employer.display_name()}"
 
+        
 
 class SavedJob(UUIDPk, TimeStamped):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_jobs")

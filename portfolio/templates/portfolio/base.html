@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-    <!-- Custom CSS (override as needed) -->
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'portfolio/css/style.css' %}">
 
     <meta name="csrf-token" content="{{ csrf_token }}">
@@ -44,6 +44,11 @@
             font-size: 1.6rem;
             letter-spacing: -0.3px;
             color: var(--primary) !important;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .navbar-brand:hover {
+            transform: scale(1.02);
         }
         .navbar-brand i {
             color: var(--copper);
@@ -52,10 +57,25 @@
         .nav-link {
             font-weight: 500;
             color: #4a5568 !important;
-            transition: color 0.2s;
+            transition: all 0.2s;
             padding: 0.5rem 1rem;
+            position: relative;
         }
         .nav-link i { margin-right: 6px; }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        .nav-link:hover::after, .nav-link.active::after {
+            width: 70%;
+        }
         .nav-link:hover, .nav-link.active {
             color: var(--primary) !important;
         }
@@ -65,6 +85,11 @@
             border: 1px solid #e2e8f0;
             background: #f8fafc;
             padding: 0.6rem 1rem;
+            transition: all 0.2s;
+        }
+        .search-form-desktop .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(10,102,194,0.2);
         }
         .search-btn {
             border-radius: 0 30px 30px 0;
@@ -72,6 +97,7 @@
             color: white;
             border: none;
             padding: 0 1.2rem;
+            transition: background 0.2s;
         }
         .search-btn:hover { background: var(--primary-dark); }
 
@@ -114,7 +140,7 @@
         }
         .bottom-nav-item span { font-size: 11px; }
 
-        /* Floating Action Button (Create Post) */
+        /* Floating Action Button */
         .fab-create {
             position: fixed;
             bottom: 90px;
@@ -214,7 +240,7 @@
             cursor: pointer;
         }
 
-        /* Cards & Hover */
+        /* Cards */
         .card {
             border: none;
             border-radius: 16px;
@@ -246,11 +272,26 @@
             flex-wrap: wrap;
             margin: 1rem 0;
         }
+        .footer-quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .footer-quick-links a {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+        .footer-quick-links a:hover {
+            color: #ffc107;
+        }
         @media (max-width: 640px) {
             .footer-links { gap: 1rem; }
+            .footer-quick-links { gap: 0.75rem; }
         }
 
-        /* ===== HOVER DROPDOWN FOR USER MENU (DESKTOP ONLY) ===== */
+        /* Desktop hover dropdown */
         @media (min-width: 992px) {
             .dropdown:hover .dropdown-menu {
                 display: block;
@@ -263,7 +304,7 @@
 </head>
 <body>
 
-    <!-- MAIN NAVBAR (desktop/tablet) -->
+    <!-- MAIN NAVBAR -->
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand" href="{% url 'portfolio:home' %}">
@@ -283,7 +324,7 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarMain">
-                <!-- Mobile search (inside collapsed menu) -->
+                <!-- Mobile search -->
                 <form class="d-lg-none mt-2 mb-3" action="{% url 'portfolio:global_search' %}" method="get">
                     <div class="input-group">
                         <input class="form-control" type="search" placeholder="Search..." name="q">
@@ -318,9 +359,23 @@
                         </a>
                     </li>
 
-                    {% if user.is_authenticated %}
+                    <!-- Resources dropdown -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-folder-open"></i> Resources
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'portfolio:company_list' %}"><i class="fas fa-building"></i> Companies</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:about' %}"><i class="fas fa-info-circle"></i> About</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:contact' %}"><i class="fas fa-envelope"></i> Contact</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:privacy' %}"><i class="fas fa-shield-alt"></i> Privacy</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:terms' %}"><i class="fas fa-file-contract"></i> Terms</a></li>
+                        </ul>
+                    </li>
+
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown" id="userDropdownContainer">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             {% if user.profile.avatar %}
                                 <img src="{{ user.profile.avatar.url }}" alt="avatar" width="32" height="32" class="rounded-circle me-1">
                             {% else %}
@@ -333,6 +388,7 @@
                             <li><a class="dropdown-item" href="{% url 'portfolio:notifications' %}"><i class="fas fa-bell me-2"></i>Notifications</a></li>
                             <li><a class="dropdown-item" href="{% url 'portfolio:saved_jobs' %}"><i class="fas fa-bookmark me-2"></i>Saved Jobs</a></li>
                             <li><a class="dropdown-item" href="{% url 'portfolio:my_applications' %}"><i class="fas fa-file-alt me-2"></i>Applications</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portfolio:job_alerts' %}"><i class="fas fa-bell me-2"></i>Job Alerts</a></li>
                             {% if user.is_superuser %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'portfolio:admin_dashboard' %}"><i class="fas fa-crown me-2"></i>Admin Dashboard</a></li>
@@ -384,37 +440,20 @@
         <i class="fas fa-arrow-up"></i>
     </button>
 
-    <!-- MOBILE BOTTOM NAVIGATION (5 essential actions) -->
+    <!-- MOBILE BOTTOM NAVIGATION -->
     {% if user.is_authenticated %}
     <div class="mobile-bottom-nav">
-        <a href="{% url 'portfolio:home' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
-            <i class="fas fa-home"></i><span>Home</span>
-        </a>
-        <a href="{% url 'portfolio:feed' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'feed' %}active{% endif %}">
-            <i class="fas fa-stream"></i><span>Feed</span>
-        </a>
-        <a href="{% url 'portfolio:create_post' %}" class="bottom-nav-item post-btn {% if request.resolver_match.url_name == 'create_post' %}active{% endif %}">
-            <i class="fas fa-plus-circle"></i><span>Post</span>
-        </a>
-        <a href="{% url 'portfolio:job_list' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'job_list' %}active{% endif %}">
-            <i class="fas fa-briefcase"></i><span>Jobs</span>
-        </a>
-        <a href="{% url 'portfolio:my_applications' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'my_applications' %}active{% endif %}">
-            <i class="fas fa-paper-plane"></i><span>Apply</span>
-        </a>
+        <a href="{% url 'portfolio:home' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="{% url 'portfolio:feed' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'feed' %}active{% endif %}"><i class="fas fa-stream"></i><span>Feed</span></a>
+        <a href="{% url 'portfolio:create_post' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'create_post' %}active{% endif %}"><i class="fas fa-plus-circle"></i><span>Post</span></a>
+        <a href="{% url 'portfolio:job_list' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'job_list' %}active{% endif %}"><i class="fas fa-briefcase"></i><span>Jobs</span></a>
+        <a href="{% url 'portfolio:my_applications' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'my_applications' %}active{% endif %}"><i class="fas fa-paper-plane"></i><span>Apply</span></a>
     </div>
     {% else %}
-    <!-- Non‑authenticated bottom bar -->
     <div class="mobile-bottom-nav">
-        <a href="{% url 'portfolio:home' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
-            <i class="fas fa-home"></i><span>Home</span>
-        </a>
-        <a href="{% url 'portfolio:job_list' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'job_list' %}active{% endif %}">
-            <i class="fas fa-briefcase"></i><span>Jobs</span>
-        </a>
-        <a href="{% url 'portfolio:login' %}" class="bottom-nav-item">
-            <i class="fas fa-sign-in-alt"></i><span>Login</span>
-        </a>
+        <a href="{% url 'portfolio:home' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="{% url 'portfolio:job_list' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'job_list' %}active{% endif %}"><i class="fas fa-briefcase"></i><span>Jobs</span></a>
+        <a href="{% url 'portfolio:login' %}" class="bottom-nav-item"><i class="fas fa-sign-in-alt"></i><span>Login</span></a>
     </div>
     {% endif %}
 
@@ -430,25 +469,44 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- FOOTER with red text for the two lines -->
     <footer class="site-footer">
         <div class="container">
             <div class="text-center">
                 <h5 class="text-white mb-2">Network</h5>
-                <p class="small text-muted">Connect. Share. Grow.</p>
+                <p class="small text-danger">Connect. Share. Grow.</p>
+
+                <!-- Quick links (all major views) -->
+                <div class="footer-quick-links">
+                    <a href="{% url 'portfolio:home' %}">Home</a>
+                    <a href="{% url 'portfolio:feed' %}">Feed</a>
+                    <a href="{% url 'portfolio:job_list' %}">Jobs</a>
+                    <a href="{% url 'portfolio:network' %}">Network</a>
+                    <a href="{% url 'portfolio:conversations' %}">Messages</a>
+                    <a href="{% url 'portfolio:company_list' %}">Companies</a>
+                    <a href="{% url 'portfolio:saved_jobs' %}">Saved Jobs</a>
+                    <a href="{% url 'portfolio:my_applications' %}">Applications</a>
+                    <a href="{% url 'portfolio:job_alerts' %}">Job Alerts</a>
+                    <a href="{% url 'portfolio:notifications' %}">Notifications</a>
+                    <a href="{% url 'portfolio:my_profile' %}">Profile</a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'portfolio:admin_dashboard' %}">Admin Dashboard</a>
+                    {% endif %}
+                </div>
+
                 <div class="footer-links">
                     <a href="{% url 'portfolio:about' %}">About</a>
                     <a href="{% url 'portfolio:contact' %}">Contact</a>
                     <a href="{% url 'portfolio:privacy' %}">Privacy</a>
                     <a href="{% url 'portfolio:terms' %}">Terms</a>
-                    <a href="{% url 'portfolio:company_list' %}">Companies</a>
                 </div>
+
                 <div class="social-links mt-3">
                     <a href="#" class="text-white-50 me-3"><i class="fab fa-linkedin-in fa-lg"></i></a>
                     <a href="#" class="text-white-50 me-3"><i class="fab fa-twitter fa-lg"></i></a>
                     <a href="#" class="text-white-50"><i class="fab fa-facebook-f fa-lg"></i></a>
                 </div>
-                <p class="small text-muted mt-4 mb-0">&copy; {% now "Y" %} Network. All rights reserved.</p>
+                <p class="small text-danger mt-4 mb-0">&copy; {% now "Y" %} Network. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -498,6 +556,26 @@
                     }
                 });
             });
+
+            // Mobile dropdown fix
+            const dropdownToggle = document.getElementById('userDropdown');
+            if (dropdownToggle && window.innerWidth < 992) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dropdownMenu = this.nextElementSibling;
+                    if (dropdownMenu && dropdownMenu.classList.contains('dropdown-menu')) {
+                        dropdownMenu.classList.toggle('show');
+                    }
+                });
+                document.addEventListener('click', function(event) {
+                    const container = document.getElementById('userDropdownContainer');
+                    if (container && !container.contains(event.target)) {
+                        const menu = container.querySelector('.dropdown-menu');
+                        if (menu) menu.classList.remove('show');
+                    }
+                });
+            }
         });
     </script>
 

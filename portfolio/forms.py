@@ -286,7 +286,7 @@ class JobPostForm(forms.ModelForm):
             "employment_type", "experience_level", "remote_status",
             "location", "location_country", "location_city",
             "salary_min", "salary_max", "salary_currency", "salary_visible",
-            "skills_required", "application_deadline", "external_application_url",
+            "skills_required", "application_deadline", "external_application_url", "apply_email",  # <-- added
         )
         widgets = {
             "description": forms.Textarea(attrs={"rows": 6}),
@@ -296,10 +296,13 @@ class JobPostForm(forms.ModelForm):
             "application_deadline": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "skills_required": forms.SelectMultiple(attrs={"size": 10}),
             "location": forms.TextInput(attrs={"list": "location-suggestions", "placeholder": "e.g., Lusaka, Zambia"}),
+            "external_application_url": forms.URLInput(attrs={"placeholder": "https://..."}),
+            "apply_email": forms.EmailInput(attrs={"placeholder": "hr@company.com"}),
         }
         help_texts = {
             "salary_currency": "e.g., ZMW, USD",
             "external_application_url": "Leave blank to accept applications on our platform",
+            "apply_email": "Candidates will send their CV to this email address (external).",
         }
 
     def __init__(self, *args, **kwargs):
@@ -355,12 +358,20 @@ class JobApplicationForm(forms.ModelForm):
 
     def save(self, commit=True):
         app = super().save(commit=False)
-        if self.user:
-            app.user = self.user
-        if self.job:
-            app.job = self.job
+        app.user = self.user
+        app.job = self.job
         if commit:
             app.save()
+            # Increment job's application counter
+            from django.db import models
+            m.Job.objects.filter(pk=self.job.pk).update(applications_count=models.F("applications_count") + 1)
+            # Notify employer
+            m.Notification.create_application(
+                self.job.employer,
+                "New application",
+                f"{self.user.display_name()} applied for {self.job.title}.",
+                target=app
+            )
         return app
 
 
@@ -378,14 +389,48 @@ class JobAlertForm(forms.ModelForm):
 # SOCIAL / POST FORMS
 # =============================================================================
 
+from django import forms
+from . import models as m
+
 class PostForm(forms.ModelForm):
+    # Override the tags field to be a CharField with a clean method
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'e.g., python, django, job',
+            'class': 'form-control'
+        }),
+        help_text="Comma‑separated tags (optional)"
+    )
+
     class Meta:
         model = m.Post
         fields = ("content", "media", "visibility", "tags")
         widgets = {
-            "content": forms.Textarea(attrs={"rows": 4, "placeholder": "What do you want to share?"}),
-            "tags": forms.TextInput(attrs={"placeholder": "Comma‑separated tags"}),
+            "content": forms.Textarea(attrs={
+                "rows": 4,
+                "placeholder": "What do you want to share?"
+            }),
+            "media": forms.ClearableFileInput(attrs={"class": "form-control"}),
+            "visibility": forms.Select(attrs={"class": "form-select"}),
         }
+
+    def clean_tags(self):
+        """Convert comma‑separated string into a list of stripped tags."""
+        tags_string = self.cleaned_data.get('tags', '')
+        if not tags_string:
+            return []
+        tags = [tag.strip() for tag in tags_string.split(',') if tag.strip()]
+        return tags
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # The tags field is already a list after clean_tags, assign directly
+        instance.tags = self.cleaned_data['tags']
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class CommentForm(forms.ModelForm):

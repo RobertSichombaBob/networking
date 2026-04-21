@@ -1,180 +1,215 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Deriv.Ed – Find Your Dream Job in Africa{% endblock %}
+
+{% block title %}Network – Your Professional Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    .feed-item { transition: all 0.2s ease; }
+    .feed-item:hover { transform: translateY(-2px); }
+    .like-btn.liked i { color: #dc3545; }
+    .save-btn.saved i { color: #ffc107; }
+    .infinite-scroll-trigger { height: 20px; opacity: 0; }
+</style>
+{% endblock %}
 
 {% block content %}
-<!-- Hero Section with animated gradient -->
+<!-- Hero Section (condensed for logged-in users) -->
 <section class="position-relative overflow-hidden" style="background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);">
-    <div class="container py-5">
-        <div class="row align-items-center min-vh-50 py-5">
-            <div class="col-lg-6 mb-4 mb-lg-0">
-                <h1 class="display-3 fw-bold mb-4" style="line-height: 1.2;">
-                    Connect with <span style="color: #B87333;">opportunities</span><br>across Africa
+    <div class="container py-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-5 fw-bold mb-2">
+                    Welcome back, {{ user.display_name|default:"Guest" }}!
                 </h1>
-                <p class="lead text-secondary mb-4">Deriv.Ed helps professionals find jobs, grow networks, and build careers on the continent.</p>
-                <div class="d-flex flex-wrap gap-3">
-                    {% if not user.is_authenticated %}
-                        <a href="{% url 'portfolio:signup' %}" class="btn btn-copper btn-lg px-4 py-3 shadow">
-                            <i class="fas fa-user-plus me-2"></i>Get Started
-                        </a>
-                        <a href="{% url 'portfolio:job_list' %}" class="btn btn-outline-secondary btn-lg px-4 py-3">
-                            <i class="fas fa-search me-2"></i>Browse Jobs
-                        </a>
-                    {% else %}
-                        <a href="{% url 'portfolio:feed' %}" class="btn btn-copper btn-lg px-4 py-3 shadow">
-                            <i class="fas fa-stream me-2"></i>Your Feed
-                        </a>
-                        <a href="{% url 'portfolio:job_list' %}" class="btn btn-outline-secondary btn-lg px-4 py-3">
-                            <i class="fas fa-search me-2"></i>Explore Jobs
-                        </a>
-                    {% endif %}
-                </div>
-                <div class="mt-4 d-flex align-items-center gap-4">
-                    <div><i class="fas fa-check-circle text-deriv-copper me-1"></i> 10k+ jobs</div>
-                    <div><i class="fas fa-check-circle text-deriv-copper me-1"></i> 50k+ users</div>
-                    <div><i class="fas fa-check-circle text-deriv-copper me-1"></i> 2k+ companies</div>
-                </div>
+                <p class="lead text-secondary">Your personalized feed is ready.</p>
             </div>
-            <div class="col-lg-6">
-                <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" 
-                     alt="Professionals collaborating" class="img-fluid rounded-4 shadow-lg">
-            </div>
-        </div>
-    </div>
-    <!-- decorative wave -->
-    <div class="position-absolute bottom-0 start-0 w-100" style="line-height: 0;">
-        <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
-        </svg>
-    </div>
-</section>
-
-<!-- Stats Section (cards) -->
-<section class="container py-5">
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 text-center p-4">
-                <div class="display-4 text-deriv-green mb-3"><i class="fas fa-briefcase"></i></div>
-                <h3 class="fw-bold text-deriv-copper">{{ job_count|default:"10k+" }}</h3>
-                <p class="text-secondary">Jobs Posted</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 text-center p-4">
-                <div class="display-4 text-deriv-green mb-3"><i class="fas fa-users"></i></div>
-                <h3 class="fw-bold text-deriv-copper">{{ user_count|default:"50k+" }}</h3>
-                <p class="text-secondary">Active Users</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 text-center p-4">
-                <div class="display-4 text-deriv-green mb-3"><i class="fas fa-building"></i></div>
-                <h3 class="fw-bold text-deriv-copper">{{ company_count|default:"2k+" }}</h3>
-                <p class="text-secondary">Companies Hiring</p>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'portfolio:create_post' %}" class="btn btn-copper btn-lg shadow">
+                    <i class="fas fa-plus-circle me-2"></i>Share something
+                </a>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Featured Jobs Section -->
-<section class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold"><i class="fas fa-star text-deriv-copper me-2"></i>Featured Jobs</h2>
-        <a href="{% url 'portfolio:job_list' %}" class="btn btn-link text-deriv-copper">View all <i class="fas fa-arrow-right ms-1"></i></a>
-    </div>
+<div class="container py-4">
     <div class="row g-4">
-        {% for job in featured_jobs %}
-        <div class="col-lg-4 col-md-6">
-            <div class="card h-100 border-0 shadow-sm hover-lift">
+        <!-- Main Feed Column -->
+        <div class="col-lg-8">
+            <div id="feed-container">
+                {% include "portfolio/partials/feed_items.html" with feed_items=feed_items has_more=has_more offset=10 %}
+            </div>
+            <div id="loading-spinner" class="text-center py-4 d-none">
+                <div class="spinner-border text-copper" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar (sticky) -->
+        <div class="col-lg-4">
+            <!-- Pending Requests Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="fw-bold"><i class="fas fa-user-plus text-copper me-2"></i>Pending requests</h5>
+                </div>
                 <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-light rounded p-2 me-3">
-                            <i class="fas fa-building fa-2x text-deriv-copper"></i>
+                    {% for req in pending_requests %}
+                    <div class="d-flex justify-content-between align-items-center mb-3" id="req-{{ req.id }}">
+                        <div>
+                            <strong>{{ req.from_user.display_name }}</strong>
+                            <p class="small text-secondary mb-0">{{ req.from_user.headline|default:"Professional" }}</p>
                         </div>
                         <div>
-                            <h5 class="card-title mb-1">{{ job.title }}</h5>
-                            <p class="text-secondary small mb-0">{{ job.company.name|default:job.employer.display_name }}</p>
+                            <button class="btn btn-sm btn-success accept-req" data-url="{% url 'portfolio:accept_connection' req.id %}">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger decline-req" data-url="{% url 'portfolio:decline_connection' req.id %}">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <span class="badge bg-deriv-green me-1">{{ job.get_employment_type_display }}</span>
-                        <span class="badge bg-secondary">{{ job.get_remote_status_display }}</span>
-                    </div>
-                    <p class="card-text small text-secondary">
-                        <i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}
-                    </p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="small text-secondary"><i class="far fa-clock me-1"></i>{{ job.created_at|timesince }} ago</span>
-                        <a href="{% url 'portfolio:job_detail' job.slug %}" class="btn btn-sm btn-outline-copper">View Job</a>
-                    </div>
+                    {% empty %}
+                    <p class="text-secondary small">No pending requests.</p>
+                    {% endfor %}
+                    <div class="mt-2"><a href="{% url 'portfolio:connection_requests' %}" class="small">View all →</a></div>
                 </div>
             </div>
-        </div>
-        {% empty %}
-        <p class="text-secondary">No featured jobs yet.</p>
-        {% endfor %}
-    </div>
-</section>
 
-<!-- Employer Call-to-Action -->
-<section class="container py-5">
-    <div class="row align-items-center bg-dark text-white rounded-4 p-5 shadow-lg" style="background: linear-gradient(145deg, #1e2a3a 0%, #0f172a 100%);">
-        <div class="col-lg-7 mb-4 mb-lg-0">
-            <h2 class="display-6 fw-bold mb-3">Are you hiring? Find top talent today.</h2>
-            <p class="lead text-white-50 mb-4">Post your jobs and connect with thousands of qualified professionals across Africa.</p>
-            <a href="{% url 'portfolio:post_job' %}" class="btn btn-copper btn-lg px-5 py-3 shadow">
-                <i class="fas fa-bullhorn me-2"></i>Post a Job – It's Free!
-            </a>
-        </div>
-        <div class="col-lg-5 text-center">
-            <i class="fas fa-chart-line fa-6x text-copper opacity-50"></i>
-        </div>
-    </div>
-</section>
+            <!-- Stats Cards -->
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <i class="fas fa-envelope fa-2x text-copper mb-2"></i>
+                        <h3 class="fw-bold">{{ unread_messages_count|default:0 }}</h3>
+                        <p class="small text-secondary mb-0">Unread messages</p>
+                        <a href="{% url 'portfolio:conversations' %}" class="small">View</a>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <i class="fas fa-bookmark fa-2x text-copper mb-2"></i>
+                        <h3 class="fw-bold">{{ saved_jobs_count|default:0 }}</h3>
+                        <p class="small text-secondary mb-0">Saved jobs</p>
+                        <a href="{% url 'portfolio:saved_jobs' %}" class="small">View</a>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <i class="fas fa-bell fa-2x text-copper mb-2"></i>
+                        <h3 class="fw-bold">{{ active_alerts_count|default:0 }}</h3>
+                        <p class="small text-secondary mb-0">Active alerts</p>
+                        <a href="{% url 'portfolio:job_alerts' %}" class="small">Manage</a>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm text-center p-3">
+                        <i class="fas fa-file-alt fa-2x text-copper mb-2"></i>
+                        <h3 class="fw-bold">{{ user.job_applications.count|default:0 }}</h3>
+                        <p class="small text-secondary mb-0">Applications</p>
+                        <a href="{% url 'portfolio:my_applications' %}" class="small">Track</a>
+                    </div>
+                </div>
+            </div>
 
-<!-- Success Stories / Testimonials (optional) -->
-<section class="container py-5">
-    <h2 class="fw-bold text-center mb-5">What our members say</h2>
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 p-4">
-                <i class="fas fa-quote-left fa-2x text-deriv-copper mb-3"></i>
-                <p class="flex-grow-1">"Deriv.Ed connected me with my dream job in Nairobi. The matching algorithm is incredible!"</p>
-                <div class="d-flex align-items-center">
-                    <img src="https://ui-avatars.com/api/?name=Grace+M&background=198754&color=fff&size=50" class="rounded-circle me-3" width="50">
-                    <div>
-                        <h6 class="mb-0">Grace M.</h6>
-                        <small class="text-secondary">Software Engineer</small>
-                    </div>
+            <!-- Employer CTA -->
+            {% if user.role == 'employer' %}
+            <div class="card border-0 bg-deriv-green text-white mt-4">
+                <div class="card-body text-center">
+                    <i class="fas fa-bullhorn fa-3x mb-2"></i>
+                    <h5>Need to hire?</h5>
+                    <p class="small">Post a job and reach thousands.</p>
+                    <a href="{% url 'portfolio:post_job' %}" class="btn btn-light btn-sm">Post a Job</a>
                 </div>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 p-4">
-                <i class="fas fa-quote-left fa-2x text-deriv-copper mb-3"></i>
-                <p class="flex-grow-1">"As an employer, we found our lead developer within a week. Highly recommend!"</p>
-                <div class="d-flex align-items-center">
-                    <img src="https://ui-avatars.com/api/?name=James+K&background=198754&color=fff&size=50" class="rounded-circle me-3" width="50">
-                    <div>
-                        <h6 class="mb-0">James K.</h6>
-                        <small class="text-secondary">CTO, M-KOPA</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 p-4">
-                <i class="fas fa-quote-left fa-2x text-deriv-copper mb-3"></i>
-                <p class="flex-grow-1">"The network I built here opened doors I never imagined. Thank you Deriv.Ed!"</p>
-                <div class="d-flex align-items-center">
-                    <img src="https://ui-avatars.com/api/?name=Amina+S&background=198754&color=fff&size=50" class="rounded-circle me-3" width="50">
-                    <div>
-                        <h6 class="mb-0">Amina S.</h6>
-                        <small class="text-secondary">Marketing Lead</small>
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
-</section>
+</div>
+
+<!-- HTMX + Infinite Scroll + AJAX interactions -->
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Infinite scroll using Intersection Observer
+    const observer = new IntersectionObserver((entries) => {
+        const trigger = entries[0];
+        if (trigger.isIntersecting && trigger.target.dataset.loading !== 'true') {
+            const container = document.getElementById('feed-container');
+            const spinner = document.getElementById('loading-spinner');
+            const offset = trigger.target.dataset.nextOffset || '10';
+            trigger.target.dataset.loading = 'true';
+            spinner.classList.remove('d-none');
+            fetch(`/?offset=${offset}`, { headers: { 'HX-Request': 'true' } })
+                .then(response => response.text())
+                .then(html => {
+                    if (html.trim()) {
+                        container.insertAdjacentHTML('beforeend', html);
+                        const newTrigger = document.querySelector('.infinite-scroll-trigger:last-child');
+                        if (newTrigger) observer.observe(newTrigger);
+                    } else {
+                        observer.disconnect();
+                        trigger.remove();
+                    }
+                    spinner.classList.add('d-none');
+                    trigger.dataset.loading = 'false';
+                })
+                .catch(err => { spinner.classList.add('d-none'); trigger.dataset.loading = 'false'; });
+        }
+    }, { threshold: 0.5 });
+    const initialTrigger = document.querySelector('.infinite-scroll-trigger');
+    if (initialTrigger) observer.observe(initialTrigger);
+
+    // Like/Save/Apply handlers
+    document.body.addEventListener('click', async (e) => {
+        const likeBtn = e.target.closest('.like-btn');
+        if (likeBtn) {
+            e.preventDefault();
+            const url = likeBtn.dataset.url;
+            const res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': window.CSRF_TOKEN } });
+            const data = await res.json();
+            if (data.liked !== undefined) {
+                const icon = likeBtn.querySelector('i');
+                if (data.liked) { icon.classList.add('fas', 'liked'); icon.classList.remove('far'); }
+                else { icon.classList.remove('fas', 'liked'); icon.classList.add('far'); }
+                likeBtn.querySelector('.like-count').textContent = data.like_count;
+            }
+        }
+        const saveBtn = e.target.closest('.save-btn');
+        if (saveBtn) {
+            e.preventDefault();
+            const url = saveBtn.dataset.url;
+            const res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': window.CSRF_TOKEN } });
+            const data = await res.json();
+            if (data.saved !== undefined) {
+                const icon = saveBtn.querySelector('i');
+                if (data.saved) { icon.classList.add('fas', 'saved'); icon.classList.remove('far'); }
+                else { icon.classList.remove('fas', 'saved'); icon.classList.add('far'); }
+            }
+        }
+        const applyBtn = e.target.closest('.apply-btn');
+        if (applyBtn) {
+            e.preventDefault();
+            const url = applyBtn.dataset.url;
+            const res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': window.CSRF_TOKEN } });
+            const data = await res.json();
+            if (data.success) { applyBtn.textContent = 'Applied'; applyBtn.disabled = true; }
+            else if (data.error) alert(data.error);
+        }
+        const acceptBtn = e.target.closest('.accept-req');
+        if (acceptBtn) {
+            const url = acceptBtn.dataset.url;
+            await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': window.CSRF_TOKEN } });
+            acceptBtn.closest('.d-flex').remove();
+        }
+        const declineBtn = e.target.closest('.decline-req');
+        if (declineBtn) {
+            const url = declineBtn.dataset.url;
+            await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': window.CSRF_TOKEN } });
+            declineBtn.closest('.d-flex').remove();
+        }
+    });
+});
+</script>
 {% endblock %}

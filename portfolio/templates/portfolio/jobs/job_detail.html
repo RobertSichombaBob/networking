@@ -4,12 +4,28 @@
 
 {% block content %}
 <div class="container py-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
     <div class="row g-4">
-        <!-- Main content -->
+        <!-- Main job description -->
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
-                    <h1 class="h2 fw-bold mb-3">{{ job.title }}</h1>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h1 class="h2 fw-bold">{{ job.title }}</h1>
+                        {% if job.external_application_url %}
+                            <span class="badge bg-info fs-6"><i class="fas fa-external-link-alt me-1"></i>External Apply</span>
+                        {% elif job.apply_email %}
+                            <span class="badge bg-warning fs-6"><i class="fas fa-envelope me-1"></i>Email Apply</span>
+                        {% endif %}
+                    </div>
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <span class="badge bg-copper">{{ job.get_employment_type_display }}</span>
                         <span class="badge bg-secondary">{{ job.get_experience_level_display }}</span>
@@ -19,37 +35,33 @@
                         <i class="fas fa-building me-1"></i> {{ job.company.name|default:job.employer.display_name }}
                         <span class="ms-3"><i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}</span>
                     </p>
-
                     {% if job.salary_visible and job.salary_min %}
                         <div class="alert alert-success mt-3">
                             <i class="fas fa-coins me-2"></i> Salary: {{ job.salary_currency }} {{ job.salary_min }} – {{ job.salary_max }}
                         </div>
                     {% endif %}
-
-                    <hr class="my-4">
-
-                    <h5 class="fw-bold">Description</h5>
+                    <hr>
+                    <h5 class="fw-bold"><i class="fas fa-align-left me-2 text-copper"></i>Description</h5>
                     <p>{{ job.description|linebreaks }}</p>
 
-                    <h5 class="fw-bold mt-4">Requirements</h5>
+                    <h5 class="fw-bold mt-4"><i class="fas fa-list-check me-2 text-copper"></i>Requirements</h5>
                     <p>{{ job.requirements|linebreaks }}</p>
 
-                    <h5 class="fw-bold mt-4">Responsibilities</h5>
+                    <h5 class="fw-bold mt-4"><i class="fas fa-tasks me-2 text-copper"></i>Responsibilities</h5>
                     <p>{{ job.responsibilities|linebreaks }}</p>
 
-                    <h5 class="fw-bold mt-4">Benefits</h5>
+                    <h5 class="fw-bold mt-4"><i class="fas fa-gift me-2 text-copper"></i>Benefits</h5>
                     <p>{{ job.benefits|linebreaks }}</p>
 
-                    <h5 class="fw-bold mt-4">Required Skills</h5>
+                    <h5 class="fw-bold mt-4"><i class="fas fa-code me-2 text-copper"></i>Required Skills</h5>
                     <div>
                         {% for skill in job.skills_required.all %}
                             <span class="badge bg-light text-dark border p-2 me-1 mb-2">{{ skill.name }}</span>
                         {% endfor %}
                     </div>
-
-                    <hr class="my-4">
+                    <hr>
                     <p class="small text-secondary">
-                        <i class="fas fa-calendar-alt me-1"></i> Posted {{ job.created_at|date }} | 
+                        <i class="fas fa-calendar-alt me-1"></i> Posted {{ job.created_at|date }} |
                         <i class="fas fa-eye me-1 ms-3"></i> {{ job.views }} views
                         {% if job.application_deadline %}
                             <br><i class="fas fa-hourglass-end me-1 text-warning"></i> Apply before {{ job.application_deadline|date }}
@@ -59,21 +71,37 @@
             </div>
         </div>
 
-        <!-- Sidebar -->
+        <!-- Sidebar actions -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm mb-4">
+            <!-- Apply card -->
+            <div class="card border-0 shadow-sm mb-4 sticky-top" style="top: 80px;">
                 <div class="card-body">
                     {% if user.is_authenticated %}
-                        {% if user.role == 'job_seeker' %}
+                        {% if user.role == 'job_seeker' or user.is_superuser %}
                             {% if has_applied %}
-                                <button class="btn btn-secondary w-100 mb-3" disabled>
-                                    <i class="fas fa-check me-2"></i>Already Applied
-                                </button>
+                                <div class="alert alert-success text-center mb-3">
+                                    <i class="fas fa-check-circle me-2"></i>You have already applied for this job.
+                                </div>
                             {% else %}
-                                <a href="{% url 'portfolio:apply_job' job.slug %}" class="btn btn-copper w-100 mb-3">
-                                    <i class="fas fa-paper-plane me-2"></i>Apply Now
-                                </a>
+                                {% if job.external_application_url %}
+                                    <a href="{{ job.external_application_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-copper w-100 mb-3 py-2">
+                                        <i class="fas fa-external-link-alt me-2"></i>Apply on External Site
+                                    </a>
+                                    <div class="small text-muted text-center">You will be redirected to the employer's website.</div>
+                                {% elif job.apply_email %}
+                                    <a href="mailto:{{ job.apply_email }}?subject=Application for {{ job.title }}&body=Please attach your CV and cover letter." class="btn btn-copper w-100 mb-3 py-2">
+                                        <i class="fas fa-envelope me-2"></i>Send CV via Email
+                                    </a>
+                                    <div class="small text-muted text-center">Your email client will open with the employer's address.</div>
+                                {% else %}
+                                    <a href="{% url 'portfolio:apply_job' job.slug %}" class="btn btn-copper w-100 mb-3 py-2">
+                                        <i class="fas fa-paper-plane me-2"></i>Apply Now
+                                    </a>
+                                    <div class="small text-muted text-center">Fill out our internal application form.</div>
+                                {% endif %}
                             {% endif %}
+
+                            <!-- Save job button -->
                             <button class="btn btn-outline-copper w-100 save-job-btn" 
                                     data-save-url="{% url 'portfolio:save_job' job.slug %}"
                                     data-unsave-url="{% url 'portfolio:unsave_job' job.slug %}"
@@ -82,55 +110,60 @@
                                 {% if is_saved %}Saved{% else %}Save Job{% endif %}
                             </button>
                         {% elif user.role == 'employer' and user == job.employer %}
-                            <a href="{% url 'portfolio:edit_job' job.slug %}" class="btn btn-outline-primary w-100 mb-2">
-                                <i class="fas fa-edit me-2"></i>Edit Job
-                            </a>
-                            <a href="{% url 'portfolio:job_applications' job.slug %}" class="btn btn-outline-success w-100">
-                                <i class="fas fa-users me-2"></i>View Applications
-                            </a>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'portfolio:edit_job' job.slug %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit me-2"></i>Edit Job
+                                </a>
+                                <a href="{% url 'portfolio:job_applications' job.slug %}" class="btn btn-outline-success">
+                                    <i class="fas fa-users me-2"></i>View Applications
+                                </a>
+                            </div>
                         {% endif %}
 
-                        <!-- SUPERUSER ACTIONS -->
+                        <!-- Superuser extra actions -->
                         {% if user.is_superuser %}
                             <hr>
                             <h6 class="fw-bold text-copper"><i class="fas fa-crown me-1"></i>Admin Actions</h6>
-                            <a href="{% url 'portfolio:edit_job' job.slug %}" class="btn btn-outline-primary w-100 mb-2">
-                                <i class="fas fa-edit me-2"></i>Edit Job (Admin)
-                            </a>
-                            <a href="{% url 'portfolio:delete_job' job.slug %}" class="btn btn-outline-danger w-100 mb-2">
-                                <i class="fas fa-trash me-2"></i>Delete Job
-                            </a>
-                            <a href="{% url 'portfolio:job_applications' job.slug %}" class="btn btn-outline-info w-100 mb-2">
-                                <i class="fas fa-users me-2"></i>Manage Applications
-                            </a>
-                            <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper w-100">
-                                <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
-                            </a>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'portfolio:edit_job' job.slug %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit me-2"></i>Edit Job (Admin)
+                                </a>
+                                <a href="{% url 'portfolio:delete_job' job.slug %}" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-trash me-2"></i>Delete Job
+                                </a>
+                                <a href="{% url 'portfolio:job_applications' job.slug %}" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-users me-2"></i>Manage Applications
+                                </a>
+                                <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-outline-copper btn-sm">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+                                </a>
+                            </div>
                         {% endif %}
                     {% else %}
-                        <p class="text-muted text-center mb-3">
-                            <i class="fas fa-lock me-1"></i> Please <a href="{% url 'portfolio:login' %}">login</a> to apply.
-                        </p>
+                        <div class="text-center">
+                            <p class="text-muted mb-3">Please <a href="{% url 'portfolio:login' %}">login</a> to apply for this job.</p>
+                            <a href="{% url 'portfolio:login' %}" class="btn btn-copper w-100">Login to Apply</a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
 
+            <!-- Employer info card -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h5 class="fw-bold mb-3">About the Employer</h5>
+                    <h5 class="fw-bold mb-3"><i class="fas fa-building me-2 text-copper"></i>About the Employer</h5>
                     <div class="d-flex align-items-center mb-2">
                         <img src="{% if job.employer.profile.avatar %}{{ job.employer.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ job.employer.display_name|urlencode }}&background=198754&color=fff&size=50{% endif %}"
                              class="rounded-circle me-3" width="50" height="50">
                         <div>
                             <strong>{{ job.employer.display_name }}</strong>
-                            {% if job.company %}
-                                <br><small>{{ job.company.name }}</small>
-                            {% endif %}
+                            {% if job.company %}<br><small class="text-muted">{{ job.company.name }}</small>{% endif %}
                         </div>
                     </div>
                     {% if job.company %}
-                        <p class="small text-secondary mb-1"><i class="fas fa-industry me-2"></i> {{ job.company.industry|default:"—" }}</p>
-                        <p class="small text-secondary"><i class="fas fa-globe me-2"></i> {% if job.company.website %}<a href="{{ job.company.website }}" target="_blank">{{ job.company.website }}</a>{% else %}—{% endif %}</p>
+                        <hr>
+                        <p class="small mb-1"><i class="fas fa-industry me-2 text-copper"></i> {{ job.company.industry|default:"—" }}</p>
+                        <p class="small"><i class="fas fa-globe me-2 text-copper"></i> {% if job.company.website %}<a href="{{ job.company.website }}" target="_blank">{{ job.company.website }}</a>{% else %}—{% endif %}</p>
                     {% endif %}
                 </div>
             </div>
@@ -142,13 +175,13 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
+        // Save/Unsave job
         $('.save-job-btn').click(function(e) {
             e.preventDefault();
             var btn = $(this);
             var saveUrl = btn.data('save-url');
             var unsaveUrl = btn.data('unsave-url');
             var isSaved = btn.data('is-saved') === true;
-
             var url = isSaved ? unsaveUrl : saveUrl;
             $.post(url, {}, function(data) {
                 if (data.success) {

@@ -2,18 +2,10 @@
 {% load static %}
 {% block title %}Post a Job – Network{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<!-- Optional Bootstrap 5 theme for Select2 -->
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-{% endblock %}
-
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <!-- Breadcrumb -->
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{% url 'portfolio:home' %}" class="text-copper">Home</a></li>
@@ -29,43 +21,63 @@
                 <div class="card-body p-4">
                     <!-- Superuser notice -->
                     {% if user.is_superuser %}
-                    <div class="alert alert-info mb-3">
-                        <i class="fas fa-crown me-2"></i> As superuser, your jobs will be visible to everyone and marked as featured.
-                    </div>
+                        <div class="alert alert-info mb-3 d-flex align-items-center">
+                            <i class="fas fa-crown fa-2x me-3"></i>
+                            <div>As superuser, your jobs are visible to everyone immediately and will be marked as featured.</div>
+                        </div>
                     {% endif %}
 
                     <!-- Company warning -->
                     {% if form.company.field.choices|length <= 1 %}
-                        <div class="alert alert-warning d-flex align-items-center" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
+                        <div class="alert alert-warning d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
                             <div>
-                                You don't have any companies yet. 
+                                You don't have any companies yet.
                                 <a href="{% url 'portfolio:create_company' %}" class="alert-link">Create a company</a> to associate with this job.
                             </div>
                         </div>
                     {% endif %}
 
-                    <form method="post" novalidate id="jobPostForm">
+                    <form method="post" novalidate>
                         {% csrf_token %}
-
                         {% if form.non_field_errors %}
-                            <div class="alert alert-danger">
-                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-                            </div>
+                            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                         {% endif %}
+
+                        <!-- Application method hint box -->
+                        <div class="alert alert-secondary mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>How will candidates apply?</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>If you provide an <strong>External URL</strong>, the "Apply" button will redirect candidates there.</li>
+                                <li>If you provide an <strong>Apply Email</strong>, the button will open their email client with a pre‑filled subject.</li>
+                                <li>If you leave both blank, candidates will use our <strong>internal application form</strong> (you will receive applications on this platform).</li>
+                            </ul>
+                        </div>
 
                         {% for field in form %}
                             <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+                                <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
                                 {{ field }}
-                                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-                                {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
+                                {% if field.help_text %}
+                                    <div class="form-text small text-muted">{{ field.help_text|safe }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                                {% endif %}
                             </div>
                         {% endfor %}
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-copper px-4 py-2">Post Job</button>
-                            <a href="{% url 'portfolio:job_list' %}" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-copper px-4 py-2">
+                                <i class="fas fa-check me-2"></i>Post Job
+                            </button>
+                            <a href="{% url 'portfolio:job_list' %}" class="btn btn-outline-secondary px-4 py-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
                         </div>
                     </form>
                 </div>
@@ -73,27 +85,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-<script>
-    $(document).ready(function() {
-        // Transform the skills multi-select into a searchable Select2
-        $('#id_skills_required').select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            placeholder: 'Select required skills...',
-            allowClear: false,
-            closeOnSelect: false,
-            language: {
-                noResults: function() {
-                    return "No skills found. <a href='/admin/portfolio/skill/add/' target='_blank'>Add a new skill</a>";
-                }
-            }
-        });
-    });
-</script>
 {% endblock %}

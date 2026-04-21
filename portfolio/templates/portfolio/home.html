@@ -10,11 +10,13 @@
     .like-btn.liked i { color: #dc3545; }
     .save-btn.saved i { color: #ffc107; }
     .infinite-scroll-trigger { height: 20px; opacity: 0; }
+    .action-card { transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .action-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section (condensed for logged-in users) -->
+<!-- Hero Section -->
 <section class="position-relative overflow-hidden" style="background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);">
     <div class="container py-4">
         <div class="row align-items-center">
@@ -22,7 +24,7 @@
                 <h1 class="display-5 fw-bold mb-2">
                     Welcome back, {{ user.display_name|default:"Guest" }}!
                 </h1>
-                <p class="lead text-secondary">Your personalized feed is ready.</p>
+                <p class="lead text-secondary">Your personalized dashboard is ready.</p>
             </div>
             <div class="col-md-4 text-md-end">
                 <a href="{% url 'portfolio:create_post' %}" class="btn btn-copper btn-lg shadow">
@@ -34,11 +36,126 @@
 </section>
 
 <div class="container py-4">
+    <!-- ========== TOP ACTION BUTTONS ========== -->
+    <div class="row g-3 mb-5">
+        <div class="col-md-3 col-6">
+            <a href="{% url 'portfolio:my_profile' %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center p-3 action-card h-100">
+                    <i class="fas fa-user-circle fa-3x text-copper mb-2"></i>
+                    <h5 class="mb-0">Profile</h5>
+                    <small class="text-muted">View & edit your profile</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{% url 'portfolio:notifications' %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center p-3 action-card h-100 position-relative">
+                    <i class="fas fa-bell fa-3x text-copper mb-2"></i>
+                    <h5 class="mb-0">Notifications</h5>
+                    <small class="text-muted">Stay updated</small>
+                    {% if unread_notifications_count %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            {{ unread_notifications_count }}
+                        </span>
+                    {% endif %}
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{% url 'portfolio:saved_jobs' %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center p-3 action-card h-100">
+                    <i class="fas fa-bookmark fa-3x text-copper mb-2"></i>
+                    <h5 class="mb-0">Saved Jobs</h5>
+                    <small class="text-muted">{{ saved_jobs_count|default:0 }} saved</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{% url 'portfolio:my_applications' %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center p-3 action-card h-100">
+                    <i class="fas fa-file-alt fa-3x text-copper mb-2"></i>
+                    <h5 class="mb-0">Applications</h5>
+                    <small class="text-muted">Track your applications</small>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- ========== FEATURED JOBS SECTION ========== -->
+    {% if featured_jobs %}
+    <div class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold"><i class="fas fa-star text-copper me-2"></i>Featured Jobs</h2>
+            <a href="{% url 'portfolio:job_list' %}" class="btn btn-link text-copper">View all jobs <i class="fas fa-arrow-right ms-1"></i></a>
+        </div>
+        <div class="row g-4">
+            {% for job in featured_jobs %}
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm job-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded p-2 me-3">
+                                    <i class="fas fa-building fa-2x text-copper"></i>
+                                </div>
+                                <div>
+                                    <h5 class="card-title mb-1">{{ job.title }}</h5>
+                                    <p class="text-secondary small mb-0">{{ job.company.name|default:job.employer.display_name }}</p>
+                                </div>
+                            </div>
+                            {% if job.external_application_url %}
+                                <span class="badge bg-info"><i class="fas fa-external-link-alt me-1"></i>External</span>
+                            {% elif job.apply_email %}
+                                <span class="badge bg-warning"><i class="fas fa-envelope me-1"></i>Email</span>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <span class="badge bg-copper me-1">{{ job.get_employment_type_display }}</span>
+                            <span class="badge bg-secondary">{{ job.get_remote_status_display }}</span>
+                        </div>
+                        <p class="card-text small text-secondary">
+                            <i class="fas fa-map-marker-alt me-1"></i> {{ job.location }}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="small text-secondary"><i class="far fa-clock me-1"></i>{{ job.created_at|timesince }} ago</span>
+                            <div class="btn-group">
+                                <a href="{% url 'portfolio:job_detail' job.slug %}" class="btn btn-sm btn-outline-copper">Details</a>
+                                {% if job.external_application_url %}
+                                    <a href="{{ job.external_application_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-copper">
+                                        <i class="fas fa-external-link-alt me-1"></i>Apply
+                                    </a>
+                                {% elif job.apply_email %}
+                                    <a href="mailto:{{ job.apply_email }}?subject=Application for {{ job.title }}&body=Please attach your CV and cover letter." class="btn btn-sm btn-copper">
+                                        <i class="fas fa-envelope me-1"></i>Apply
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'portfolio:apply_job' job.slug %}" class="btn btn-sm btn-copper">
+                                        <i class="fas fa-paper-plane me-1"></i>Apply
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ========== MAIN FEED & SIDEBAR ========== -->
     <div class="row g-4">
-        <!-- Main Feed Column -->
+        <!-- Left: Feed -->
         <div class="col-lg-8">
-            <div id="feed-container">
-                {% include "portfolio/partials/feed_items.html" with feed_items=feed_items has_more=has_more offset=10 %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-stream me-2 text-copper"></i>Your Feed</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="feed-container">
+                        {% include "portfolio/partials/feed_items.html" with feed_items=feed_items has_more=has_more offset=10 %}
+                    </div>
+                </div>
             </div>
             <div id="loading-spinner" class="text-center py-4 d-none">
                 <div class="spinner-border text-copper" role="status">
@@ -47,7 +164,7 @@
             </div>
         </div>
 
-        <!-- Right Sidebar (sticky) -->
+        <!-- Right: Sidebar -->
         <div class="col-lg-4">
             <!-- Pending Requests Card -->
             <div class="card border-0 shadow-sm mb-4">
@@ -77,53 +194,60 @@
                 </div>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="row g-3">
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <i class="fas fa-envelope fa-2x text-copper mb-2"></i>
-                        <h3 class="fw-bold">{{ unread_messages_count|default:0 }}</h3>
-                        <p class="small text-secondary mb-0">Unread messages</p>
-                        <a href="{% url 'portfolio:conversations' %}" class="small">View</a>
-                    </div>
+            <!-- Quick Stats -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-chart-simple me-2 text-copper"></i>Quick Stats</h5>
                 </div>
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <i class="fas fa-bookmark fa-2x text-copper mb-2"></i>
-                        <h3 class="fw-bold">{{ saved_jobs_count|default:0 }}</h3>
-                        <p class="small text-secondary mb-0">Saved jobs</p>
-                        <a href="{% url 'portfolio:saved_jobs' %}" class="small">View</a>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <i class="fas fa-bell fa-2x text-copper mb-2"></i>
-                        <h3 class="fw-bold">{{ active_alerts_count|default:0 }}</h3>
-                        <p class="small text-secondary mb-0">Active alerts</p>
-                        <a href="{% url 'portfolio:job_alerts' %}" class="small">Manage</a>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm text-center p-3">
-                        <i class="fas fa-file-alt fa-2x text-copper mb-2"></i>
-                        <h3 class="fw-bold">{{ user.job_applications.count|default:0 }}</h3>
-                        <p class="small text-secondary mb-0">Applications</p>
-                        <a href="{% url 'portfolio:my_applications' %}" class="small">Track</a>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <i class="fas fa-envelope fa-2x text-copper mb-1"></i>
+                                <h4 class="fw-bold mb-0">{{ unread_messages_count|default:0 }}</h4>
+                                <small>Unread messages</small>
+                                <a href="{% url 'portfolio:conversations' %}" class="small d-block mt-1">View</a>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <i class="fas fa-bookmark fa-2x text-copper mb-1"></i>
+                                <h4 class="fw-bold mb-0">{{ saved_jobs_count|default:0 }}</h4>
+                                <small>Saved jobs</small>
+                                <a href="{% url 'portfolio:saved_jobs' %}" class="small d-block mt-1">View</a>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <i class="fas fa-bell fa-2x text-copper mb-1"></i>
+                                <h4 class="fw-bold mb-0">{{ active_alerts_count|default:0 }}</h4>
+                                <small>Active alerts</small>
+                                <a href="{% url 'portfolio:job_alerts' %}" class="small d-block mt-1">Manage</a>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <i class="fas fa-file-alt fa-2x text-copper mb-1"></i>
+                                <h4 class="fw-bold mb-0">{{ user.job_applications.count|default:0 }}</h4>
+                                <small>Applications</small>
+                                <a href="{% url 'portfolio:my_applications' %}" class="small d-block mt-1">Track</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Employer CTA -->
-            {% if user.role == 'employer' %}
-            <div class="card border-0 bg-deriv-green text-white mt-4">
+            <!-- Logout Button (additional) -->
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <i class="fas fa-bullhorn fa-3x mb-2"></i>
-                    <h5>Need to hire?</h5>
-                    <p class="small">Post a job and reach thousands.</p>
-                    <a href="{% url 'portfolio:post_job' %}" class="btn btn-light btn-sm">Post a Job</a>
+                    <form action="{% url 'portfolio:logout' %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </button>
+                    </form>
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -161,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const initialTrigger = document.querySelector('.infinite-scroll-trigger');
     if (initialTrigger) observer.observe(initialTrigger);
 
-    // Like/Save/Apply handlers
+    // Like/Save/Apply handlers (existing)
     document.body.addEventListener('click', async (e) => {
         const likeBtn = e.target.closest('.like-btn');
         if (likeBtn) {

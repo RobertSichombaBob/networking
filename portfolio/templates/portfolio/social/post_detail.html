@@ -1,6 +1,22 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}Post – Deriv.Ed{% endblock %}
+{% block title %}{{ post.author.display_name }}'s Post – Network{% endblock %}
+
+{% block extra_css %}
+<style>
+    .comment-avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+    .like-btn.active i {
+        color: #0a66c2;
+    }
+    .like-btn.active {
+        background-color: rgba(10,102,194,0.1);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -12,18 +28,31 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <!-- Author info -->
-                    <div class="d-flex align-items-center mb-3">
-                        <img src="{% if post.author.profile.avatar %}{{ post.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ post.author.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
-                             class="rounded-circle me-3" width="60" height="60">
-                        <div>
-                            <h5 class="mb-0 fw-bold">
-                                <a href="{% url 'portfolio:public_profile' post.author.id %}" class="text-decoration-none text-dark">
-                                    {{ post.author.display_name }}
-                                </a>
-                            </h5>
-                            <small class="text-muted">{{ post.created_at|date:"F j, Y, g:i a" }}</small>
+                    <!-- Author info with superuser actions -->
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if post.author.profile.avatar %}{{ post.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ post.author.display_name|urlencode }}&background=198754&color=fff&size=60{% endif %}"
+                                 class="rounded-circle me-3" width="60" height="60">
+                            <div>
+                                <h5 class="mb-0 fw-bold">
+                                    <a href="{% url 'portfolio:public_profile' post.author.id %}" class="text-decoration-none text-dark">
+                                        {{ post.author.display_name }}
+                                    </a>
+                                </h5>
+                                <small class="text-muted">{{ post.created_at|date:"F j, Y, g:i a" }}</small>
+                            </div>
                         </div>
+                        {% if user.is_superuser %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-link text-secondary" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'portfolio:edit_post' post.id %}"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'portfolio:delete_post' post.id %}" onclick="return confirm('Delete this post?')"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                            </ul>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <!-- Post content -->
@@ -45,19 +74,26 @@
                         </button>
                     </div>
 
-                    <!-- Comments -->
+                    <!-- Comments section -->
                     <h5 class="fw-bold mb-3"><i class="far fa-comment me-2 text-copper"></i>Comments ({{ post.comment_count }})</h5>
 
-                    <div class="comments-list mb-4">
+                    <div class="comments-list mb-4" id="comments-list">
                         {% for comment in post.comments.all %}
-                            <div class="d-flex mb-3">
+                            <div class="d-flex mb-3" id="comment-{{ comment.id }}">
                                 <img src="{% if comment.author.profile.avatar %}{{ comment.author.profile.avatar.url }}{% else %}https://ui-avatars.com/api/?name={{ comment.author.display_name|urlencode }}&background=ccc&color=333&size=40{% endif %}"
-                                     class="rounded-circle me-2" width="40" height="40">
+                                     class="rounded-circle me-2 comment-avatar">
                                 <div class="bg-light p-3 rounded flex-grow-1">
                                     <strong class="small">{{ comment.author.display_name }}</strong>
                                     <small class="text-muted ms-2">{{ comment.created_at|timesince }} ago</small>
                                     <p class="mb-0 mt-1">{{ comment.content }}</p>
                                 </div>
+                                {% if user.is_superuser or user == comment.author %}
+                                <div class="ms-2">
+                                    <a href="{% url 'portfolio:delete_comment' comment.id %}" class="text-danger" onclick="return confirm('Delete this comment?')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
                             </div>
                         {% empty %}
                             <p class="text-muted">No comments yet. Be the first to comment!</p>
@@ -65,7 +101,7 @@
                     </div>
 
                     <!-- Add comment -->
-                    <form class="comment-form" data-post-id="{{ post.id }}" data-comment-url="{% url 'portfolio:add_comment' post.id %}">
+                    <form class="comment-form" data-comment-url="{% url 'portfolio:add_comment' post.id %}">
                         {% csrf_token %}
                         <div class="input-group">
                             <input type="text" class="form-control" placeholder="Write a comment..." name="content" required>
@@ -82,7 +118,7 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // Like / unlike
+        // Like/Unlike
         $('.like-btn').click(function(e) {
             e.preventDefault();
             var btn = $(this);
@@ -102,7 +138,7 @@
             });
         });
 
-        // Post comment
+        // Post comment via AJAX (append without reload)
         $('.comment-form').submit(function(e) {
             e.preventDefault();
             var form = $(this);
@@ -112,8 +148,26 @@
 
             $.post(url, {content: content}, function(data) {
                 if (data.success) {
-                    // Reload to show new comment (simple approach)
-                    location.reload();
+                    var commentsList = $('#comments-list');
+                    var newComment = `
+                        <div class="d-flex mb-3" id="comment-${data.comment.id}">
+                            <img src="https://ui-avatars.com/api/?name={{ user.display_name|urlencode }}&background=198754&color=fff&size=40" class="rounded-circle me-2 comment-avatar">
+                            <div class="bg-light p-3 rounded flex-grow-1">
+                                <strong class="small">{{ user.display_name }}</strong>
+                                <small class="text-muted ms-2">just now</small>
+                                <p class="mb-0 mt-1">${data.comment.content}</p>
+                            </div>
+                        </div>
+                    `;
+                    commentsList.append(newComment);
+                    form.find('input[name="content"]').val('');
+                    // Update comment count
+                    var commentCountSpan = $('.like-btn').siblings('.comment-toggle').find('.comment-count');
+                    if (!commentCountSpan.length) {
+                        var countElem = $('h5 i.fa-comment').parent();
+                        var oldCount = parseInt(countElem.text().match(/\d+/)[0]) || 0;
+                        countElem.html(`<i class="far fa-comment me-2 text-copper"></i>Comments (${oldCount + 1})`);
+                    }
                 }
             }).fail(function(xhr) {
                 alert(xhr.responseJSON?.error || 'Could not post comment.');

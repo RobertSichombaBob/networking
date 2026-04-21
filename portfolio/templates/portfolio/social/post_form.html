@@ -1,25 +1,26 @@
 {% extends "portfolio/base.html" %}
 {% load static %}
-{% block title %}{% if object %}Edit{% else %}Create{% endif %} Post – Deriv.Ed{% endblock %}
+{% block title %}{% if object %}Edit{% else %}Create{% endif %} Post – Network{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-transparent">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold"><i class="fas fa-edit me-2 text-copper"></i>{% if object %}Edit{% else %}Create{% endif %} Post</h5>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'portfolio:admin_dashboard' %}" class="btn btn-sm btn-outline-copper">
+                        <i class="fas fa-crown me-1"></i>Admin Dashboard
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="card-body p-4">
                     <form method="post" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
 
                         {% if form.non_field_errors %}
-                            <div class="alert alert-danger">
-                                {% for error in form.non_field_errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                         {% endif %}
 
                         {% for field in form %}
@@ -27,7 +28,7 @@
                                 <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
                                 {{ field }}
                                 {% if field.help_text %}
-                                    <div class="form-text">{{ field.help_text }}</div>
+                                    <div class="form-text text-muted small">{{ field.help_text }}</div>
                                 {% endif %}
                                 {% if field.errors %}
                                     <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
@@ -37,7 +38,7 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-copper px-4 py-2">
-                                {% if object %}Update{% else %}Post{% endif %}
+                                {% if object %}Update Post{% else %}Publish Post{% endif %}
                             </button>
                             <a href="{% url 'portfolio:feed' %}" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
                         </div>

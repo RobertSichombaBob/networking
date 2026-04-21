@@ -411,6 +411,30 @@ class CompanyVerificationView(LoginRequiredMixin, CompanyAdminMixin, CreateView)
         return reverse("portfolio:company_detail", kwargs={"slug": self.company.slug})
 
 
+
+
+
+class DeleteCompanyView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = m.Company
+    template_name = "portfolio/companies/company_confirm_delete.html"
+    success_url = reverse_lazy("portfolio:company_list")
+
+    def test_func(self):
+        company = self.get_object()
+        if self.request.user.is_superuser:
+            return True
+        if not hasattr(self.request.user, "employer_profile"):
+            return False
+        return self.request.user.employer_profile.company == company and self.request.user.employer_profile.is_company_admin
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Company deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+
+
+
 # =============================================================================
 # EXPERIENCE & EDUCATION
 # =============================================================================
@@ -704,15 +728,25 @@ class ApplyJobView(LoginRequiredMixin, JobSeekerRequiredMixin, FormView):
         kwargs["job"] = self.job
         return kwargs
 
-    def form_valid(self, form):
-        form.save()
-        messages.success(self.request, "Application submitted!")
-        return redirect("portfolio:job_detail", slug=self.job.slug)
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["job"] = self.job
         return context
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, "Application submitted successfully!")
+        return redirect("portfolio:job_detail", slug=self.job.slug)
+
+    def form_invalid(self, form):
+        return self.render_to_response(self.get_context_data(form=form))
+
+
+
+
+
+
+
 
 
 class SaveJobView(LoginRequiredMixin, View):
